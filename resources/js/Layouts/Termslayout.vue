@@ -84,7 +84,7 @@ import { ref, onMounted } from 'vue'
 import { router } from '@inertiajs/vue3'
 import Navbar from '@/Components/Navbar.vue'
 import Sidebar from '@/Components/Sidebar.vue'
-import MessageFunction from '@/Components/Messagefunction.vue'
+import MessageFunction from '@/Components/MessageFunction.vue'
 import TermsTable from '@/Components/TermsTable/TermsTable.vue'
 
 // Receive props from Laravel

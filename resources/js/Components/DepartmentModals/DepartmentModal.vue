@@ -128,7 +128,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { useForm, usePage, router } from '@inertiajs/vue3'
-import MessageFunction from '@/Components/Messagefunction.vue'
+import MessageFunction from '@/Components/MessageFunction.vue'
 
 const props = defineProps({
   type: String, // add | edit | view | delete
