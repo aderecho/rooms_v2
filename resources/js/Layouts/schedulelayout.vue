@@ -6,7 +6,7 @@ import { router } from '@inertiajs/vue3';
 // Core Components
 import Navbar from '@/Components/Navbar.vue';
 import Sidebar from '@/Components/Sidebar.vue';
-import MessageFunction from '@/Components/MessageFunction.vue';
+import MessageFunction from '@/Components/Messagefunction.vue';
 
 // ScheduleModal Components
 import AppointmentModal from '@/Components/ScheduleModal/AppointmentModal.vue';

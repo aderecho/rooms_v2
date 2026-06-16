@@ -4,7 +4,7 @@ import { usePage, router } from '@inertiajs/vue3';
 import Navbar from "@/Components/Navbar.vue";
 import Sidebar from "@/Components/Sidebar.vue";
 import IconButton from "@/Components/IconButton.vue";
-import MessageFunction from "@/Components/MessageFunction.vue";
+import MessageFunction from "@/Components/Messagefunction.vue";
 
 // --- LAYOUT & SIDEBAR LOGIC ---
 

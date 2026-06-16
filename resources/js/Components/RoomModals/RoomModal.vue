@@ -169,7 +169,7 @@
 <script setup>
 import { computed, watch, ref } from 'vue'
 import { useForm, usePage, router } from '@inertiajs/vue3'
-import MessageFunction from '@/Components/MessageFunction.vue'
+import MessageFunction from '@/Components/Messagefunction.vue'
 import EquipmentTagInput from '@/Components/RoomModals/EquipmentTagInput.vue'
 
 const props = defineProps({

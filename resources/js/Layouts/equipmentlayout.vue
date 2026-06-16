@@ -3,7 +3,7 @@ import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { Head } from '@inertiajs/vue3'
 import Navbar from '@/Components/Navbar.vue'
 import Sidebar from '@/Components/Sidebar.vue'
-import EquipmentTable from '@/Components/EquipmentModals/EquipmentTable.vue'
+import EquipmentTable from '@/Components/EquipmentModals/equipmenttable.vue'
 import Chart from 'chart.js/auto'
 
 // Sidebar state - Responsive handling

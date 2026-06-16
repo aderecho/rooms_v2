@@ -5,7 +5,7 @@ import Navbar from '@/Components/Navbar.vue';
 import Sidebar from '@/Components/Sidebar.vue';
 import UserAccountTable from '@/Components/UserAccountModal/UserAccountTable.vue';
 import UserModal from '@/Components/UserAccountModal/UserModal.vue';
-import MessageFunction from '@/Components/MessageFunction.vue';
+import MessageFunction from '@/Components/Messagefunction.vue';
 
 // --- Props ---
 const props = defineProps({
