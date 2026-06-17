@@ -1,81 +1,125 @@
 <template>
   <div 
-    class="min-h-screen flex items-center justify-center bg-cover bg-center bg-no-repeat"
+    class="login-page min-h-screen bg-cover bg-center bg-no-repeat px-4 py-8 sm:px-6 lg:px-8"
     :style="{ backgroundImage: 'url(/image/upimage4.webp)' }"
   >
-    <!-- Semi-transparent overlay for better readability -->
-    <div class="absolute inset-0 bg-black bg-opacity-40"></div>
-    
-    <!-- Login Card -->
-    <div class="relative z-10 bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md mx-4">
-      <!-- Header -->
-      <div class="text-center mb-8">
-        <div class="flex justify-center mb-4">
-          <img src="/image/uplogo.png" alt="UP Cebu Logo" class="h-20 w-20">
-        </div>
-        <h1 class="text-3xl font-bold text-[#7A0C23]">UP CEBU</h1>
-        <p class="text-gray-600 mt-2">UPCEBU ROOM MANAGEMENT SYSTEM</p>
-      </div>
+    <div class="absolute inset-0 bg-black/45"></div>
+    <div class="absolute inset-0 bg-gradient-to-br from-[#24020d]/75 via-[#7A0C23]/35 to-black/40"></div>
 
-      <!-- Login Form -->
-      <form @submit.prevent="submit" class="space-y-6">
-        <div v-if="errors" class="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg">
-          {{ errors }}
-        </div>
+    <main class="relative z-10 mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-6xl items-center justify-center">
+      <section class="login-shell grid w-full overflow-hidden rounded-[28px] border border-white/20 bg-white/10 shadow-[0_28px_90px_rgba(0,0,0,0.38)] backdrop-blur-xl lg:grid-cols-[1.05fr_0.95fr]">
+        <div class="hidden min-h-[620px] flex-col justify-between p-10 text-white lg:flex">
+          <div>
+            <div class="inline-flex items-center gap-3 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold shadow-lg backdrop-blur-md">
+              <span class="h-2.5 w-2.5 rounded-full bg-[#F9D56E]"></span>
+              University of the Philippines Cebu
+            </div>
+          </div>
 
-        <div>
-          <label for="username" class="block text-sm font-medium text-gray-700 mb-1">
-            Username
-          </label>
-          <input
-            id="username"
-            v-model="form.username"
-            type="text"
-            required
-            :class="[
-              'w-full px-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent transition duration-200',
-              'border-gray-300 focus:ring-[#7A0C23]'
-            ]"
-            placeholder="Enter your username or email"
-          >
-        </div>
+          <div class="max-w-xl">
+            <h1 class="text-5xl font-bold leading-tight tracking-normal">
+              Room management for a smarter campus.
+            </h1>
+            <p class="mt-5 max-w-lg text-base leading-7 text-white/82">
+              Manage rooms, schedules, equipment, and campus spaces from one secure administrative portal.
+            </p>
+          </div>
 
-        <div>
-          <label for="password" class="block text-sm font-medium text-gray-700 mb-1">
-            Password
-          </label>
-          <input
-            id="password"
-            v-model="form.password"
-            type="password"
-            required
-            :class="[
-              'w-full px-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent transition duration-200',
-              'border-gray-300 focus:ring-[#7A0C23]'
-            ]"
-            placeholder="Enter your password"
-          >
+          <div class="grid grid-cols-3 gap-3">
+            <div class="rounded-2xl border border-white/16 bg-white/10 p-4 backdrop-blur-md">
+              <p class="text-2xl font-bold">Live</p>
+              <p class="mt-1 text-xs font-medium uppercase tracking-[0.18em] text-white/65">Schedules</p>
+            </div>
+            <div class="rounded-2xl border border-white/16 bg-white/10 p-4 backdrop-blur-md">
+              <p class="text-2xl font-bold">Secure</p>
+              <p class="mt-1 text-xs font-medium uppercase tracking-[0.18em] text-white/65">Access</p>
+            </div>
+            <div class="rounded-2xl border border-white/16 bg-white/10 p-4 backdrop-blur-md">
+              <p class="text-2xl font-bold">Fast</p>
+              <p class="mt-1 text-xs font-medium uppercase tracking-[0.18em] text-white/65">Reports</p>
+            </div>
+          </div>
         </div>
 
-        <!-- Login Button -->
-        <button
-          type="submit"
-          :disabled="processing"
-          class="w-full bg-[#7A0C23] text-white py-3 px-4 rounded-lg font-semibold hover:bg-[#5a061a] transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <span v-if="processing" class="flex items-center justify-center">
-            <svg class="animate-spin h-5 w-5 mr-2 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            Logging in...
-          </span>
-          <span v-else>
-            Sign In
-          </span>
-        </button>
-      </form>
-    </div>
+        <div class="flex items-center justify-center bg-white/95 px-5 py-8 shadow-2xl sm:px-10 lg:px-12">
+          <div class="w-full max-w-md">
+            <div class="mb-8 text-center">
+              <div class="mx-auto mb-6 flex h-32 w-32 items-center justify-center rounded-[2rem] border border-[#7A0C23]/10 bg-white shadow-[0_18px_48px_rgba(122,12,35,0.22)] sm:h-36 sm:w-36">
+                <img src="/image/uplogo.png" alt="UP Cebu Logo" class="h-28 w-28 object-contain sm:h-32 sm:w-32">
+              </div>
+              <h2 class="text-3xl font-bold text-[#7A0C23]">Welcome back</h2>
+              <p class="mt-2 text-sm font-medium uppercase tracking-[0.18em] text-gray-500">
+                UPCEBU ROOM MANAGEMENT SYSTEM
+              </p>
+            </div>
+
+            <form @submit.prevent="submit" class="space-y-5">
+              <div v-if="errors" class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                {{ errors }}
+              </div>
+
+              <div>
+                <label for="username" class="mb-2 block text-sm font-semibold text-gray-800">
+                  Username
+                </label>
+                <div class="relative">
+                  <svg class="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M20 21a8 8 0 0 0-16 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    <path d="M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z" stroke="currentColor" stroke-width="1.8"/>
+                  </svg>
+                  <input
+                    id="username"
+                    v-model="form.username"
+                    type="text"
+                    required
+                    autocomplete="username"
+                    class="w-full rounded-2xl border border-gray-200 bg-gray-50/80 py-3.5 pl-12 pr-4 text-gray-900 shadow-inner outline-none transition duration-200 placeholder:text-gray-400 focus:border-[#7A0C23] focus:bg-white focus:ring-4 focus:ring-[#7A0C23]/12"
+                    placeholder="Enter your username or email"
+                  >
+                </div>
+              </div>
+
+              <div>
+                <label for="password" class="mb-2 block text-sm font-semibold text-gray-800">
+                  Password
+                </label>
+                <div class="relative">
+                  <svg class="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M7 11V8a5 5 0 0 1 10 0v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    <path d="M6.5 11h11A1.5 1.5 0 0 1 19 12.5v6A1.5 1.5 0 0 1 17.5 20h-11A1.5 1.5 0 0 1 5 18.5v-6A1.5 1.5 0 0 1 6.5 11Z" stroke="currentColor" stroke-width="1.8"/>
+                    <path d="M12 15v2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                  </svg>
+                  <input
+                    id="password"
+                    v-model="form.password"
+                    type="password"
+                    required
+                    autocomplete="current-password"
+                    class="w-full rounded-2xl border border-gray-200 bg-gray-50/80 py-3.5 pl-12 pr-4 text-gray-900 shadow-inner outline-none transition duration-200 placeholder:text-gray-400 focus:border-[#7A0C23] focus:bg-white focus:ring-4 focus:ring-[#7A0C23]/12"
+                    placeholder="Enter your password"
+                  >
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                :disabled="processing"
+                class="group mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#7A0C23] px-4 py-3.5 text-sm font-bold uppercase tracking-[0.14em] text-white shadow-[0_14px_30px_rgba(122,12,35,0.35)] transition duration-200 hover:bg-[#5a061a] hover:shadow-[0_18px_38px_rgba(122,12,35,0.42)] focus:outline-none focus:ring-4 focus:ring-[#7A0C23]/25 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <span v-if="processing" class="flex items-center justify-center">
+                  <svg class="mr-2 h-5 w-5 animate-spin text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Logging in...
+                </span>
+                <span v-else>Sign In</span>
+              </button>
+            </form>
+          </div>
+        </div>
+      </section>
+    </main>
   </div>
 </template>
 
@@ -117,13 +161,19 @@ const submit = async () => {
 </script>
 
 <style scoped>
-/* Optional: Add a subtle overlay gradient effect */
-.min-h-screen {
+.login-page {
   position: relative;
+  overflow: hidden;
 }
 
-/* Ensure text remains readable on any background */
-.bg-white {
-  backdrop-filter: blur(2px);
+.login-shell {
+  min-height: min(720px, calc(100vh - 4rem));
+}
+
+@media (max-width: 1023px) {
+  .login-shell {
+    max-width: 520px;
+    min-height: auto;
+  }
 }
 </style>
