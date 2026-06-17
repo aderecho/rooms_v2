@@ -11,6 +11,9 @@ class RoomController
     public function index()
     {
         $rooms = Room::all();
+        /**
+         * return all rooms [room_name, room_code, capacity]
+         */
         
         return response()->json([
             'rooms' => $rooms,

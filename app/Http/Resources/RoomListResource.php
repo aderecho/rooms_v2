@@ -15,11 +15,10 @@ class RoomListResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-        'Room'  => $this->room_name,
-        'Facility' => $this->room_code,
-        'Type' => $this->roomType->room_type_name,
-        'Building' => $this->building?->building_name,
-    ];
+            'room_name' => $this->room_name,
+            'room_code' => $this->room_code,
+            'capacity' => $this->capacity,
+        ];
 
     }
 }

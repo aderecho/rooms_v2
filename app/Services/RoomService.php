@@ -17,13 +17,15 @@ class RoomService
 
     public function getRoomsForApi()
     {
-        return Room::with('roomType', 'building')
-            ->select('id', 'room_name', 'room_code','room_type_id', 'building_id') // Select only necessary columns
+        return Room::query()
+            ->select('id', 'room_name', 'room_code', 'capacity')
             ->orderBy('room_name')
             ->get();
     }
     public function getRoomById(int $id)
     {
-        return Room::with(['building', 'roomType'])->findOrFail($id);
+        return Room::query()
+            ->select('id', 'room_name', 'room_code', 'capacity')
+            ->findOrFail($id);
     }
 }
