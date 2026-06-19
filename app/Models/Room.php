@@ -76,7 +76,7 @@ class Room extends Model
         ];
     }
 
-    // Accessor for full room name
+    // Accessor for full room name with building
     public function getFullRoomAttribute()
     {
         $building = $this->building ? $this->building->building_name : 'No Building';
