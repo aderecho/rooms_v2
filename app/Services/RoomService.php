@@ -18,14 +18,16 @@ class RoomService
     public function getRoomsForApi()
     {
         return Room::query()
-            ->select('id', 'room_name', 'room_code', 'capacity')
+            ->with('building:id,building_name')
+            ->select('id', 'room_name', 'room_code', 'capacity', 'building_id')
             ->orderBy('room_name')
             ->get();
     }
     public function getRoomById(int $id)
     {
         return Room::query()
-            ->select('id', 'room_name', 'room_code', 'capacity')
+            ->with('building:id,building_name')
+            ->select('id', 'room_name', 'room_code', 'capacity', 'building_id')
             ->findOrFail($id);
     }
 }
