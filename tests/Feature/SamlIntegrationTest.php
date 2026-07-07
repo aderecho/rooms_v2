@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\SamlConfiguration;
+use App\Models\SamlReplayRecord;
 use App\Models\UserAccount;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use RobRichards\XMLSecLibs\XMLSecurityDSig;
@@ -169,6 +170,33 @@ test('acs redirects to user not found page when saml email is not registered in 
     ]);
 });
 
+test('acs accepts signed response with in response to an issued login request', function () {
+    config()->set('app.url', 'http://localhost:8000');
+    config()->set('services.saml.sp_entity_id', 'http://localhost:8000/saml2/metadata');
+
+    seedOnePortalSamlIdp();
+    $user = UserAccount::factory()->create([
+        'email' => 'standard.user@oneportal.test',
+        'account_status' => 'active',
+    ]);
+    $requestId = '_4d828205-b45b-4c41-a3fa-5e50c6cccdcd';
+
+    SamlReplayRecord::create([
+        'request_id' => $requestId,
+        'issuer' => 'http://127.0.0.1:8012/saml2/metadata',
+        'expires_at' => now()->addMinutes(5),
+    ]);
+
+    $this->post(route('saml.acs'), [
+        'SAMLResponse' => base64_encode(onePortalSamlResponse('standard.user@oneportal.test', '_response3', '_assertion3', $requestId)),
+        'RelayState' => '/MainDashboard',
+    ])
+        ->assertRedirect('/MainDashboard')
+        ->assertSessionHas('user.email', 'standard.user@oneportal.test');
+
+    $this->assertAuthenticatedAs($user);
+});
+
 function seedOnePortalSamlIdp(): void
 {
     $material = samlSigningMaterial();
@@ -186,14 +214,16 @@ function seedOnePortalSamlIdp(): void
     ]);
 }
 
-function onePortalSamlResponse(string $email, string $responseId = '_response1', string $assertionId = '_assertion1'): string
+function onePortalSamlResponse(string $email, string $responseId = '_response1', string $assertionId = '_assertion1', ?string $inResponseTo = null): string
 {
     $now = now()->utc();
     $expires = $now->copy()->addMinutes(5);
+    $inResponseToAttribute = $inResponseTo ? ' InResponseTo="'.$inResponseTo.'"' : '';
+    $subjectInResponseToAttribute = $inResponseTo ? ' InResponseTo="'.$inResponseTo.'"' : '';
 
     $xml = <<<XML
 <?xml version="1.0" encoding="UTF-8"?>
-<samlp:Response xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol" xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" ID="{$responseId}" Version="2.0" IssueInstant="{$now->toIso8601ZuluString()}" Destination="http://localhost:8000/saml2/acs">
+<samlp:Response xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol" xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" ID="{$responseId}" Version="2.0" IssueInstant="{$now->toIso8601ZuluString()}" Destination="http://localhost:8000/saml2/acs"{$inResponseToAttribute}>
   <saml:Issuer>http://127.0.0.1:8012/saml2/metadata</saml:Issuer>
   <samlp:Status><samlp:StatusCode Value="urn:oasis:names:tc:SAML:2.0:status:Success"/></samlp:Status>
   <saml:Assertion ID="{$assertionId}" Version="2.0" IssueInstant="{$now->toIso8601ZuluString()}">
@@ -201,7 +231,7 @@ function onePortalSamlResponse(string $email, string $responseId = '_response1',
     <saml:Subject>
       <saml:NameID Format="urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress">{$email}</saml:NameID>
       <saml:SubjectConfirmation Method="urn:oasis:names:tc:SAML:2.0:cm:bearer">
-        <saml:SubjectConfirmationData Recipient="http://localhost:8000/saml2/acs" NotOnOrAfter="{$expires->toIso8601ZuluString()}"/>
+        <saml:SubjectConfirmationData Recipient="http://localhost:8000/saml2/acs" NotOnOrAfter="{$expires->toIso8601ZuluString()}"{$subjectInResponseToAttribute}/>
       </saml:SubjectConfirmation>
     </saml:Subject>
     <saml:Conditions NotBefore="{$now->copy()->subMinute()->toIso8601ZuluString()}" NotOnOrAfter="{$expires->toIso8601ZuluString()}">
