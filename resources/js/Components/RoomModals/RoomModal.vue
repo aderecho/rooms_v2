@@ -181,7 +181,7 @@ const emit = defineEmits(['close'])
 const page = usePage()
 
 // Backend props
-const buildings = computed(() => page.props.buildings)
+const buildings = computed(() => page.props.allBuildings || page.props.buildings?.data || page.props.buildings || [])
 const colleges = computed(() => page.props.colleges)
 const departments = computed(() => page.props.departments)
 const roomTypes = computed(() => page.props.roomTypes)
@@ -317,7 +317,7 @@ const closeErrorToast = () => (showError.value = false)
   @apply mt-1 w-full border rounded-md p-2;
 }
 .btn-primary {
-  @apply bg-[#7A0C23] text-white px-4 py-2 rounded-lg;
+  @apply bg-[#005740] text-white px-4 py-2 rounded-lg;
 }
 .btn-gray {
   @apply bg-gray-500 text-white px-4 py-2 rounded-lg;

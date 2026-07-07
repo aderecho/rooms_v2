@@ -388,28 +388,28 @@ const tableEvents = computed(() => {
 </script>
 
 <template>
-    <div class="flex flex-col bg-white rounded-xl shadow-lg">
-        <div class="p-4 flex items-center justify-between border-b border-yellow-200">
-            <div class="flex items-center space-x-2">
-                <button @click="handleNavigation(currentMode, -1)" class="p-2 text-gray-700 bg-gray-100 rounded-full hover:bg-gray-200 transition">
+    <div class="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_42px_rgba(15,23,42,0.06)]">
+        <div class="flex flex-col gap-4 border-b border-slate-200 p-4 lg:flex-row lg:items-center lg:justify-between">
+            <div class="flex items-center gap-2">
+                <button @click="handleNavigation(currentMode, -1)" class="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:border-[#005740]/30 hover:text-[#005740]">
                     <FontAwesomeIcon :icon="faChevronLeft" />
                 </button>
-                <button @click="handleNavigation(currentMode, 1)" class="p-2 text-gray-700 bg-gray-100 rounded-full hover:bg-gray-200 transition">
+                <button @click="handleNavigation(currentMode, 1)" class="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:border-[#005740]/30 hover:text-[#005740]">
                     <FontAwesomeIcon :icon="faChevronRight" />
                 </button>
-                <button @click="goToToday" class="px-3 py-1 text-sm font-semibold border rounded-lg bg-[#7A0C23] text-white hover:bg-red-800 transition">
+                <button @click="goToToday" class="rounded-xl bg-[#005740] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#006b4f]">
                     Today
                 </button>
             </div>
 
-            <h2 class="text-xl font-bold text-gray-800">{{ formattedTitle }}</h2>
+            <h2 class="text-xl font-bold text-slate-950 lg:text-center">{{ formattedTitle }}</h2>
 
-            <div class="flex space-x-1 p-1 bg-yellow-400 rounded-lg">
+            <div class="inline-flex rounded-xl border border-slate-200 bg-slate-100 p-1">
                 <button v-for="mode in ['list', 'day', 'week', 'month']" :key="mode"
                     @click="changeView(mode)"
                     :class="[
-                        'p-2 rounded-lg text-sm font-medium transition',
-                        currentMode === mode ? 'bg-white text-[#7A0C23] shadow' : 'text-white hover:bg-yellow-500'
+                        'rounded-lg px-3 py-2 text-sm font-semibold transition',
+                        currentMode === mode ? 'bg-white text-[#005740] shadow-sm' : 'text-slate-600 hover:text-slate-950'
                     ]">
                     <FontAwesomeIcon :icon="mode === 'list' ? faListUl : mode === 'day' ? faCalendarDay : mode === 'week' ? faCalendarWeek : faCalendar" class="w-4 h-4" />
                 </button>
@@ -417,10 +417,10 @@ const tableEvents = computed(() => {
         </div>
 
         <div class="flex-grow p-4">
-            <div v-if="currentMode === 'list'" class="bg-white rounded-xl overflow-hidden border border-yellow-600">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-[#7A0C23] text-white">
-                        <tr>
+            <div v-if="currentMode === 'list'" class="overflow-hidden rounded-xl border border-slate-200 bg-white">
+                <table class="schedule-table min-w-full divide-y divide-slate-200">
+                    <thead class="!bg-[#005740] text-white">
+                        <tr class="!bg-[#005740] hover:!bg-[#005740]">
                             <th class="px-6 py-3 text-left text-xs font-semibold uppercase">APPOINTMENT</th>
                             <th class="px-6 py-3 text-left text-xs font-semibold uppercase">ROOM</th>
                             <th class="px-6 py-3 text-left text-xs font-semibold uppercase">BUILDING</th>
@@ -431,12 +431,12 @@ const tableEvents = computed(() => {
                             <th class="px-6 py-3 text-center text-xs font-semibold uppercase w-40">ACTIONS</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-yellow-400">
-                        <tr v-for="item in tableEvents" :key="item.id" @click="handleEventSelected(item.eventObject)" class="transition hover:bg-blue-50 cursor-pointer">
-                            <td class="px-6 py-4 text-sm font-bold text-[#7A0C23]">{{ item.appointment }}</td>
-                            <td class="px-6 py-4 text-sm text-gray-700">{{ item.room }}</td>
-                            <td class="px-6 py-4 text-sm text-gray-700">{{ item.building }}</td>
-                            <td class="px-6 py-4 text-sm text-gray-700">{{ item.day }}</td>
+                    <tbody class="divide-y divide-slate-100">
+                        <tr v-for="item in tableEvents" :key="item.id" @click="handleEventSelected(item.eventObject)" class="cursor-pointer transition hover:bg-emerald-50/40">
+                            <td class="px-6 py-4 text-sm font-semibold text-slate-950">{{ item.appointment }}</td>
+                            <td class="px-6 py-4 text-sm font-medium text-[#005740]">{{ item.room }}</td>
+                            <td class="px-6 py-4 text-sm text-slate-600">{{ item.building }}</td>
+                            <td class="px-6 py-4 text-sm text-slate-600">{{ item.day }}</td>
                             <td class="px-6 py-4 text-sm text-gray-700">
                                 <div class="flex items-center">
                                     <span>{{ item.time }}</span>
@@ -458,21 +458,21 @@ const tableEvents = computed(() => {
                                 <div class="flex items-center justify-center space-x-3" @click.stop>
                                     <button
                                         @click="handleEventSelected(item.eventObject)"
-                                        class="text-blue-600 hover:text-blue-800 transition-transform hover:scale-110"
+                                        class="grid h-8 w-8 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-[#005740]/30 hover:text-[#005740]"
                                         title="View Details"
                                     >
                                         <FontAwesomeIcon :icon="listIcons.view" class="w-4 h-4" />
                                     </button>
                                     <button
                                         @click="handleEditEvent(item.eventObject, $event)"
-                                        class="text-green-600 hover:text-green-800 transition-transform hover:scale-110"
+                                        class="grid h-8 w-8 place-items-center rounded-lg border border-emerald-100 bg-emerald-50 text-[#005740] transition hover:bg-emerald-100"
                                         title="Edit"
                                     >
                                         <FontAwesomeIcon :icon="listIcons.edit" class="w-4 h-4" />
                                     </button>
                                     <button
                                         @click="handleDeleteEvent(item.eventObject, $event)"
-                                        class="text-red-600 hover:text-red-800 transition-transform hover:scale-110"
+                                        class="grid h-8 w-8 place-items-center rounded-lg border border-red-100 bg-red-50 text-red-600 transition hover:bg-red-100"
                                         title="Delete"
                                     >
                                         <FontAwesomeIcon :icon="listIcons.delete" class="w-4 h-4" />
@@ -480,8 +480,8 @@ const tableEvents = computed(() => {
                                 </div>
                             </td>
                         </tr>
-                        <tr @click="handleAddRowClick" class="bg-green-50/50 hover:bg-green-100 cursor-pointer transition">
-                            <td colspan="8" class="px-6 py-4 text-center text-green-700 font-semibold text-base">
+                        <tr @click="handleAddRowClick" class="cursor-pointer bg-emerald-50/60 transition hover:bg-emerald-100">
+                            <td colspan="8" class="px-6 py-4 text-center text-base font-semibold text-[#005740]">
                                 <FontAwesomeIcon :icon="listIcons.add" class="mr-2" /> Schedule new appointment...
                             </td>
                         </tr>
@@ -550,5 +550,13 @@ button.transition-transform:hover {
 /* Prevent text selection on buttons */
 button {
     user-select: none;
+}
+
+.schedule-table thead,
+.schedule-table thead tr,
+.schedule-table thead tr:hover,
+.schedule-table thead th {
+    background-color: #005740 !important;
+    color: #ffffff !important;
 }
 </style>

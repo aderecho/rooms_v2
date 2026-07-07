@@ -11,6 +11,9 @@ use App\Models\Room;
 use App\Models\Equipment;
 use App\Models\Term;
 use App\Models\Schedule;
+use App\Models\SamlAuditEvent;
+use App\Models\SamlConfiguration;
+use App\Models\SamlReplayRecord;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +27,9 @@ class DatabaseSeeder extends Seeder
         DB::statement('SET FOREIGN_KEY_CHECKS=0');
 
         // Clear tables in correct order (reverse of dependencies)
+        SamlAuditEvent::truncate();
+        SamlReplayRecord::truncate();
+        SamlConfiguration::truncate();
         Schedule::truncate();
         Equipment::truncate();
         Room::truncate();
@@ -105,6 +111,10 @@ class DatabaseSeeder extends Seeder
         $this->command->info('Creating schedules...');
         Schedule::factory()->count(20)->create();
 
+        // Create SAML configuration records
+        $this->command->info('Creating SAML configurations...');
+        $this->call(SamlConfigurationSeeder::class);
+
         $this->command->info('Database seeded successfully!');
 
         // Show login credentials
@@ -126,5 +136,6 @@ class DatabaseSeeder extends Seeder
         $this->command->info('Equipment: ' . Equipment::count());
         $this->command->info('Terms: ' . Term::count());
         $this->command->info('Schedules: ' . Schedule::count());
+        $this->command->info('SAML Configurations: ' . SamlConfiguration::count());
     }
 }

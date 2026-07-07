@@ -10,6 +10,7 @@ use App\Models\Room;
 use App\Models\Building;
 use App\Models\Equipment;
 use App\Models\Schedule;
+use App\Models\RoomType;
 use Carbon\Carbon;
 
 class MainDashboardController extends Controller
@@ -26,13 +27,18 @@ class MainDashboardController extends Controller
 
         // Get today's date
         $today = now()->format('Y-m-d');
+        $latestScheduleDate = Schedule::max('date');
+        $calendarAnchor = $latestScheduleDate ? Carbon::parse($latestScheduleDate) : now();
+        $calendarStart = $calendarAnchor->copy()->startOfMonth()->startOfWeek(Carbon::SUNDAY);
+        $calendarEnd = $calendarAnchor->copy()->endOfMonth()->endOfWeek(Carbon::SATURDAY);
 
-        // Get rooms with their schedules for today
+        // Get rooms with their schedules for the visible calendar range
         $rooms = Room::with([
             'college',
             'building',
-            'schedules' => function($query) use ($today) {
-                $query->where('date', $today)
+            'schedules' => function($query) use ($calendarStart, $calendarEnd) {
+                $query->whereBetween('date', [$calendarStart->format('Y-m-d'), $calendarEnd->format('Y-m-d')])
+                      ->orderBy('date')
                       ->orderBy('start_time')
                       ->with('faculty');
             },
@@ -42,15 +48,25 @@ class MainDashboardController extends Controller
         ->paginate(10);
 
         // Process rooms data for frontend
-        $processedRooms = $rooms->getCollection()->map(function($room) use ($today) {
+        $formatRoom = function($room) use ($today) {
             // Get today's schedule for this room
-            $todaysSchedule = $room->schedules->first();
+            $todaysSchedule = $room->schedules->first(function ($schedule) use ($today) {
+                return $schedule->date->format('Y-m-d') === $today;
+            });
 
             return [
                 'id' => $room->id,
                 'room_name' => $room->room_name,
                 'room_code' => $room->room_code,
+                'building_id' => $room->building_id,
+                'college_id' => $room->college_id,
+                'department_id' => $room->department_id,
+                'room_type_id' => $room->room_type_id,
+                'assigned_user_id' => $room->assigned_user_id,
+                'floor_number' => $room->floor_number,
                 'location' => $room->location,
+                'description' => $room->description,
+                'equipments' => $room->equipments ?? [],
                 'college' => $room->college ? [
                     'id' => $room->college->id,
                     'college_name' => $room->college->college_name,
@@ -98,16 +114,59 @@ class MainDashboardController extends Controller
                     $todaysSchedule->start_time->format('H:i') . ' - ' . $todaysSchedule->end_time->format('H:i') : 'N/A',
                 'today_date' => $today,
             ];
-        });
+        };
+
+        $processedRooms = $rooms->getCollection()->map($formatRoom);
 
         // Set the processed collection back to the paginator
         $rooms->setCollection($processedRooms);
+
+        $allRooms = Room::with([
+            'college',
+            'building',
+            'schedules' => function($query) use ($calendarStart, $calendarEnd) {
+                $query->whereBetween('date', [$calendarStart->format('Y-m-d'), $calendarEnd->format('Y-m-d')])
+                    ->orderBy('date')
+                    ->orderBy('start_time')
+                    ->with('faculty');
+            },
+            'assignedUser'
+        ])
+        ->orderBy('room_name')
+        ->get()
+        ->map($formatRoom);
 
         // Get today's schedules count
         $todaySchedulesCount = Schedule::where('date', $today)->count();
 
         // Get pending schedules count
         $pendingSchedulesCount = Schedule::where('status', 'pending')->count();
+
+        $calendarSchedules = Schedule::with(['room.college', 'room.building', 'faculty'])
+            ->whereBetween('date', [$calendarStart->format('Y-m-d'), $calendarEnd->format('Y-m-d')])
+            ->orderBy('date')
+            ->orderBy('start_time')
+            ->get()
+            ->map(function ($schedule) {
+                return [
+                    'id' => $schedule->id,
+                    'room_id' => $schedule->room_id,
+                    'room_name' => $schedule->room?->room_name,
+                    'room_code' => $schedule->room?->room_code,
+                    'college_name' => $schedule->room?->college?->college_name,
+                    'building_name' => $schedule->room?->building?->building_name,
+                    'event_title' => $schedule->event_title,
+                    'course_code' => $schedule->course_code,
+                    'course_name' => $schedule->course_name,
+                    'faculty_name' => $schedule->faculty_name ?: $schedule->faculty?->full_name,
+                    'date' => $schedule->date->format('Y-m-d'),
+                    'day' => $schedule->day_of_week,
+                    'start_time' => $schedule->start_time->format('H:i'),
+                    'end_time' => $schedule->end_time->format('H:i'),
+                    'status' => $schedule->status,
+                    'number_of_participants' => $schedule->number_of_participants,
+                ];
+            });
 
         // Get equipment statistics
         $equipmentStats = [
@@ -142,12 +201,23 @@ class MainDashboardController extends Controller
             'todaySchedules' => $todaySchedulesCount,
             'pendingSchedules' => $pendingSchedulesCount,
             'rooms' => $rooms,
+            'allRooms' => $allRooms,
             'equipmentStats' => $equipmentStats,
             'buildingStats' => $buildingStats,
             'userStats' => $userStats,
             'todayDate' => $today,
             'recentActivities' => $this->getRecentActivities(),
-            'chartData' => $this->getChartData(),
+            'calendarSchedules' => $calendarSchedules,
+            'calendarStart' => $calendarStart->format('Y-m-d'),
+            'calendarEnd' => $calendarEnd->format('Y-m-d'),
+            'calendarMonthLabel' => $calendarAnchor->format('F Y'),
+            'calendarActiveMonth' => (int) $calendarAnchor->format('n') - 1,
+            'calendarActiveYear' => (int) $calendarAnchor->format('Y'),
+            'buildings' => Building::orderBy('building_name')->get(),
+            'colleges' => College::orderBy('college_name')->get(),
+            'departments' => Department::orderBy('department_name')->get(),
+            'roomTypes' => RoomType::orderBy('room_type_name')->get(),
+            'users' => UserAccount::orderBy('last_name')->orderBy('first_name')->get(),
         ]);
     }
 
@@ -215,52 +285,6 @@ class MainDashboardController extends Controller
         });
 
         return array_slice($activities, 0, 10);
-    }
-
-    private function getChartData()
-    {
-        $today = now();
-        $last7Days = [];
-
-        // Get room bookings for last 7 days
-        for ($i = 6; $i >= 0; $i--) {
-            $date = $today->copy()->subDays($i);
-            $dayName = $date->format('D');
-            $dateStr = $date->format('Y-m-d');
-
-            $bookings = Schedule::where('date', $dateStr)
-                ->where('status', 'approved')
-                ->count();
-
-            $last7Days[] = [
-                'day' => $dayName,
-                'date' => $dateStr,
-                'bookings' => $bookings,
-            ];
-        }
-
-        // Get room utilization by status
-        $roomStatus = [
-            'available' => Room::where('status', 'available')->count(),
-            'occupied' => Room::where('status', 'occupied')->count(),
-            'maintenance' => Room::where('status', 'maintenance')->count(),
-            'closed' => Room::where('status', 'closed')->count(),
-        ];
-
-        // Get equipment by status
-        $equipmentStatus = [
-            'available' => Equipment::where('status', 'available')->count(),
-            'in_use' => Equipment::where('status', 'in_use')->count(),
-            'maintenance' => Equipment::where('status', 'maintenance')->count(),
-            'damaged' => Equipment::where('status', 'damaged')->count(),
-            'retired' => Equipment::where('status', 'retired')->count(),
-        ];
-
-        return [
-            'weeklyBookings' => $last7Days,
-            'roomStatus' => $roomStatus,
-            'equipmentStatus' => $equipmentStatus,
-        ];
     }
 
     public function search(Request $request)

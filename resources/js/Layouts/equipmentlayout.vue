@@ -3,6 +3,7 @@ import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { Head } from '@inertiajs/vue3'
 import Navbar from '@/Components/Navbar.vue'
 import Sidebar from '@/Components/Sidebar.vue'
+import Breadcrumbs from '@/Components/Breadcrumbs.vue'
 import EquipmentTable from '@/Components/EquipmentModals/EquipmentTable.vue'
 import Chart from 'chart.js/auto'
 
@@ -62,7 +63,7 @@ const updateCharts = () => {
                 datasets: [{
                     label: 'Equipment Count',
                     data: [0],
-                    backgroundColor: '#7A0C23',
+                    backgroundColor: '#005740',
                 }],
             }
         barChartInstance.update()
@@ -116,8 +117,8 @@ const initializeCharts = () => {
             datasets: [{
                 label: 'Equipment Count',
                 data: [0],
-                backgroundColor: '#7A0C23',
-                borderColor: '#7A0C23',
+                backgroundColor: '#005740',
+                borderColor: '#005740',
                 borderWidth: 1
             }]
         },
@@ -171,7 +172,7 @@ watch(isMobile, () => {
 <template>
     <Head title="Equipment Management" />
 
-    <div class="flex h-screen overflow-hidden bg-gray-200">
+    <div class="app-shell flex h-screen overflow-hidden">
         <!-- Sidebar with responsive behavior -->
         <Sidebar 
             :sidebarOpen="sidebarOpen" 
@@ -191,17 +192,21 @@ watch(isMobile, () => {
         <div class="flex-1 flex flex-col w-full lg:w-auto overflow-hidden">
             <Navbar @toggleSidebar="toggleSidebar" :sidebarOpen="sidebarOpen" />
 
-            <main class="flex-1 overflow-y-auto p-2 sm:p-4">
+            <main class="app-main pt-20">
+                <div class="app-page-header">
+                    <Breadcrumbs trail="UPCEBU > EQUIPMENT" />
+                </div>
+
                 <div class="space-y-3 sm:space-y-4">
                     <!-- Main Equipment Table -->
-                    <div>
+                    <div class="app-content-panel">
                         <EquipmentTable @chart-data-update="handleChartDataUpdate" />
                     </div>
 
                     <!-- Charts Section - Responsive Grid -->
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
                         <!-- Pie Chart Container -->
-                        <div class="bg-white shadow-lg rounded-xl p-3 sm:p-4">
+                        <div class="app-card p-3 sm:p-4">
                             <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-2 sm:mb-3 gap-2">
                                 <h2 class="text-sm sm:text-lg font-bold text-gray-800">Equipment Distribution by Person</h2>
                                 <div class="flex items-center text-xs sm:text-sm text-gray-500">
@@ -215,11 +220,11 @@ watch(isMobile, () => {
                         </div>
 
                         <!-- Bar Chart Container -->
-                        <div class="bg-white shadow-lg rounded-xl p-3 sm:p-4">
+                        <div class="app-card p-3 sm:p-4">
                             <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-2 sm:mb-3 gap-2">
                                 <h2 class="text-sm sm:text-lg font-bold text-gray-800">Equipment Count by Building</h2>
                                 <div class="flex items-center text-xs sm:text-sm text-gray-500">
-                                    <div class="w-2 h-2 sm:w-3 sm:h-3 bg-[#7A0C23] rounded-full mr-1"></div>
+                                    <div class="w-2 h-2 sm:w-3 sm:h-3 bg-[#005740] rounded-full mr-1"></div>
                                     <span>Buildings: {{ chartData.barData.labels?.length || 0 }}</span>
                                 </div>
                             </div>

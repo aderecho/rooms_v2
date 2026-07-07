@@ -34,7 +34,7 @@ const hasValue = (v) => {
                 <!-- Basic Info -->
                 <div class="bg-gray-50 p-4 rounded-lg">
                     <div class="flex items-start justify-between mb-2 gap-3">
-                        <h4 class="text-lg font-bold text-[#7A0C23]">{{ event.title }}</h4>
+                        <h4 class="text-lg font-bold text-[#005740]">{{ event.title }}</h4>
                         <StatusBadge
                             v-if="ext.status"
                             :status="ext.status"

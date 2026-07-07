@@ -227,16 +227,16 @@ const hasNotifications = computed(() => notifications.value.length > 0);
 
         <button
             type="button"
-            class="relative p-2 rounded-full hover:bg-white/10 transition"
+            class="relative grid h-11 w-11 place-items-center rounded-[0.9rem] bg-white/95 text-[#005740] transition hover:-translate-y-0.5 hover:bg-white"
             title="Appointment notifications"
             @click="togglePanel"
         >
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-[1.1rem] w-[1.1rem] text-current" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2a2 2 0 01-.6 1.4L4 17h5m6 0a3 3 0 11-6 0m6 0H9" />
             </svg>
             <span
                 v-if="unreadCount > 0"
-                class="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center ring-2 ring-[#7A0C23]"
+                class="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center ring-2 ring-[#005740]"
             >
                 {{ unreadCount > 99 ? '99+' : unreadCount }}
             </span>
@@ -248,7 +248,7 @@ const hasNotifications = computed(() => notifications.value.length > 0);
             @click.self="closePanel"
         >
             <div class="absolute right-4 top-16 w-[28rem] max-w-[calc(100vw-2rem)] bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden">
-                <div class="px-4 py-3 bg-[#7A0C23] text-white">
+                <div class="px-4 py-3 bg-[#005740] text-white">
                     <div class="flex items-center justify-between gap-2">
                         <h3 class="text-base font-semibold">Appointment Notifications</h3>
                         <div class="flex items-center gap-2">
@@ -291,8 +291,8 @@ const hasNotifications = computed(() => notifications.value.length > 0);
                     <div
                         v-for="notification in notifications"
                         :key="notification.id"
-                        class="rounded-lg border p-3 bg-white cursor-pointer transition hover:border-[#7A0C23]/40 hover:shadow-sm"
-                        :class="notification.read_at ? 'border-gray-200' : 'border-[#7A0C23]/30 bg-red-50/30'"
+                        class="rounded-lg border p-3 bg-white cursor-pointer transition hover:border-[#005740]/40 hover:shadow-sm"
+                        :class="notification.read_at ? 'border-gray-200' : 'border-[#005740]/30 bg-red-50/30'"
                         @click="openNotificationAppointment(notification)"
                     >
                         <div class="min-w-0">
@@ -386,7 +386,7 @@ const hasNotifications = computed(() => notifications.value.length > 0);
             @click.self="closeClearConfirm"
         >
             <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden" @click.stop>
-                <div class="bg-[#7A0C23] px-6 py-4">
+                <div class="bg-[#005740] px-6 py-4">
                     <h3 class="text-xl font-semibold text-white">Clear All Notifications</h3>
                 </div>
 
@@ -417,7 +417,7 @@ const hasNotifications = computed(() => notifications.value.length > 0);
                         </button>
                         <button
                             type="button"
-                            class="px-4 py-2 rounded-lg font-medium text-white bg-[#7A0C23] hover:opacity-90 transition disabled:opacity-50"
+                            class="px-4 py-2 rounded-lg font-medium text-white bg-[#005740] hover:opacity-90 transition disabled:opacity-50"
                             :disabled="clearConfirm.loading"
                             @click="confirmClearAll"
                         >

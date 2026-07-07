@@ -77,7 +77,7 @@
                     </button>
 
                     <button v-if="type === 'add' || type === 'edit'" @click="submitForm"
-                        class="bg-[#7A0C23] text-white px-4 py-2 rounded-lg" :disabled="formCollege.processing">
+                        class="bg-[#005740] text-white px-4 py-2 rounded-lg" :disabled="formCollege.processing">
                         {{ type === 'edit' ? 'Update' : 'Create' }}
                     </button>
 

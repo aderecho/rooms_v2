@@ -340,7 +340,7 @@ const getStatusColor = (status) => {
                                     </svg>
                                     <span class="text-sm">{{ doc.name }}</span>
                                 </div>
-                                <a :href="doc.url" target="_blank" class="text-xs text-[#7A0C23] hover:underline">View</a>
+                                <a :href="doc.url" target="_blank" class="text-xs text-[#005740] hover:underline">View</a>
                             </div>
                         </div>
                     </div>

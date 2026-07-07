@@ -23,23 +23,11 @@ class RoomController extends Controller
     ) {}
     public function index(Request $request)
     {
-        $perPage = 10;
-        $search = $request->input('search');
-        $rooms = $this->roomService->getRooms($perPage, $search);
-        $buildings = Building::all();
-        $colleges = College::all();
-        $roomTypes = RoomType::all();
-        $departments = Department::all();
-        $users = UserAccount::all();
-
-        return Inertia::render('Rooms', [
-            'rooms' => $rooms,
-            'buildings' => $buildings,
-            'colleges' => $colleges,
-            'departments' => $departments,
-            'roomTypes' => $roomTypes,
-            'users' => $users,
-        ]);
+        return redirect('/BuildingDashboard?' . http_build_query([
+            'active_tab' => 'rooms',
+            'room_search' => $request->input('search'),
+            'building_id' => $request->input('building_id'),
+        ]));
     }
 
     public function apiIndex()

@@ -12,6 +12,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->validateCsrfTokens(except: [
+            'saml2/acs',
+            'saml2/logout',
+        ]);
+
         // Append middleware to web group
         $middleware->web(append: [
             \App\Http\Middleware\HandleInertiaRequests::class,

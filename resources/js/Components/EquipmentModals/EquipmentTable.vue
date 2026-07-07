@@ -93,7 +93,7 @@ const generateChartColors = (count) => {
     const palette = [
         '#4CAF50', '#FF9800', '#2196F3', '#9C27B0', '#FF5722',
         '#795548', '#607D8B', '#3F51B5', '#009688', '#E91E63',
-        '#7A0C23', '#00BCD4', '#8BC34A', '#FFC107', '#673AB7',
+        '#005740', '#00BCD4', '#8BC34A', '#FFC107', '#673AB7',
     ]
 
     return Array.from({ length: count }, (_, index) => palette[index % palette.length])
@@ -116,7 +116,7 @@ const emitChartData = () => {
             datasets: [{
                 label: 'Equipment Count',
                 data: buildingStats.map((b) => b.equipmentCount),
-                backgroundColor: '#7A0C23',
+                backgroundColor: '#005740',
             }],
         },
     })
@@ -320,14 +320,14 @@ watch(searchTerm, () => {
     <div class="space-y-4 p-2 sm:p-4">
         <!-- Initial Loading State -->
         <div v-if="initialLoading" class="text-center py-8">
-            <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#7A0C23]"></div>
+            <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#005740]"></div>
             <p class="mt-2 text-gray-600">Loading equipment data...</p>
         </div>
 
         <!-- Error State -->
         <div v-else-if="error" class="bg-red-50 border border-red-200 rounded-lg p-4">
             <p class="text-red-600 font-semibold">Error: {{ error }}</p>
-            <button @click="initializeData" class="mt-2 px-4 py-2 bg-[#7A0C23] text-white rounded-lg hover:bg-[#5a091a] transition-colors">
+            <button @click="initializeData" class="mt-2 px-4 py-2 bg-[#005740] text-white rounded-lg hover:bg-[#003f30] transition-colors">
                 Retry
             </button>
         </div>
@@ -338,7 +338,7 @@ watch(searchTerm, () => {
                 <!-- Header Section - Responsive -->
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                        <h1 class="text-xl sm:text-2xl font-bold text-[#7A0C23]">Equipment Management</h1>
+                        <h1 class="text-xl sm:text-2xl font-bold text-[#005740]">Equipment Management</h1>
                         <p class="text-sm sm:text-base text-gray-600 mt-1">Track and manage all equipment assets</p>
                     </div>
 
@@ -361,7 +361,7 @@ watch(searchTerm, () => {
                             type="text"
                             v-model="searchTerm"
                             placeholder="Search by name, room..."
-                            class="w-full pl-10 pr-4 py-2 sm:py-3 border border-yellow-500 rounded-lg focus:ring-2 focus:ring-[#7A0C23] focus:border-transparent outline-none transition-all text-sm"
+                            class="w-full pl-10 pr-4 py-2 sm:py-3 border border-primary-600 rounded-lg focus:ring-2 focus:ring-[#005740] focus:border-transparent outline-none transition-all text-sm"
                         />
                         <div class="absolute left-3 top-2.5 sm:top-3.5 text-gray-400">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -385,13 +385,13 @@ watch(searchTerm, () => {
                         :class="[
                             'p-3 sm:p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 hover:shadow-lg',
                             activeFilter === 'all' 
-                                ? 'bg-[#7A0C23] border-[#7A0C23] text-white scale-105 shadow-lg' 
-                                : 'bg-white border-gray-200 text-gray-700 hover:border-[#7A0C23]'
+                                ? 'bg-[#005740] border-[#005740] text-white scale-105 shadow-lg' 
+                                : 'bg-white border-gray-200 text-gray-700 hover:border-[#005740]'
                         ]"
                     >
                         <p class="text-xs sm:text-sm font-bold uppercase flex items-center justify-between">
                             Total Items
-                            <span v-if="activeFilter === 'all'" class="text-xs bg-white text-[#7A0C23] px-2 py-1 rounded-full">Active</span>
+                            <span v-if="activeFilter === 'all'" class="text-xs bg-white text-[#005740] px-2 py-1 rounded-full">Active</span>
                         </p>
                         <p class="text-xl sm:text-2xl font-bold mt-1">{{ filteredStatistics.total || 0 }}</p>
                         <p class="text-xs mt-1 opacity-75 hidden sm:block">Click to view all items</p>
@@ -440,7 +440,7 @@ watch(searchTerm, () => {
                         <span class="text-xs sm:text-sm text-gray-600">Active Filters:</span>
                         <span v-if="activeFilter !== 'all'" class="inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium"
                             :class="{
-                                'bg-[#7A0C23] text-white': activeFilter === 'all',
+                                'bg-[#005740] text-white': activeFilter === 'all',
                                 'bg-green-100 text-green-800': activeFilter === 'available',
                                 'bg-yellow-100 text-yellow-500': activeFilter === 'in_use'
                             }"
@@ -462,7 +462,7 @@ watch(searchTerm, () => {
                         </span>
                         <button 
                             @click="clearFilter(); searchTerm = ''" 
-                            class="text-xs sm:text-sm text-[#7A0C23] hover:text-[#5a091a] underline"
+                            class="text-xs sm:text-sm text-[#005740] hover:text-[#003f30] underline"
                         >
                             Clear All Filters
                         </button>
@@ -471,10 +471,10 @@ watch(searchTerm, () => {
             </div>
 
             <!-- Equipment Table - Responsive -->
-            <div class="mt-6 sm:mt-10 bg-white shadow-lg rounded-xl overflow-hidden border border-yellow-400">
+            <div class="modern-table-card mt-6 sm:mt-10">
                 <!-- Mobile Card View (hidden on larger screens) -->
                 <div class="block lg:hidden">
-                    <div v-for="item in paginatedUsageList" :key="item.id" class="border-b border-yellow-400 p-4 hover:bg-gray-50">
+                    <div v-for="item in paginatedUsageList" :key="item.id" class="border-b border-slate-200 p-4 hover:bg-emerald-50/60">
                         <div class="flex justify-between items-start mb-3">
                             <div class="flex items-center gap-2">
                                 <span class="w-8 h-8 flex items-center justify-center bg-green-100 text-green-700 rounded-full font-bold text-xs">
@@ -518,7 +518,7 @@ watch(searchTerm, () => {
                 <!-- Desktop Table View (hidden on mobile) -->
                 <div class="hidden lg:block overflow-x-auto">
                     <table class="w-full text-left">
-                        <thead class="bg-[#7A0C23] text-white sticky top-0 z-10">
+                        <thead class="bg-[#005740] text-white sticky top-0 z-10">
                             <tr>
                                 <th class="px-4 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-bold uppercase tracking-wider">Items</th>
                                 <th class="px-4 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-bold uppercase tracking-wider">Location</th>
@@ -576,7 +576,7 @@ watch(searchTerm, () => {
                     <p class="text-xs sm:text-sm mt-2">Try adjusting your filters or search terms.</p>
                     <button 
                         @click="clearFilter(); searchTerm = ''" 
-                        class="mt-4 px-4 py-2 bg-[#7A0C23] text-white rounded-lg hover:bg-[#5a091a] transition-colors text-sm"
+                        class="mt-4 px-4 py-2 bg-[#005740] text-white rounded-lg hover:bg-[#003f30] transition-colors text-sm"
                     >
                         Clear All Filters
                     </button>
@@ -595,7 +595,7 @@ watch(searchTerm, () => {
                                 <span class="text-xs sm:text-sm text-gray-600">Show:</span>
                                 <select
                                     v-model="itemsPerPage"
-                                    class="text-xs sm:text-sm border border-gray-300 rounded px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-[#7A0C23] focus:border-transparent"
+                                    class="text-xs sm:text-sm border border-gray-300 rounded px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-[#005740] focus:border-transparent"
                                 >
                                     <option value="3">3</option>
                                     <option value="5">5</option>
@@ -630,7 +630,7 @@ watch(searchTerm, () => {
                                     :class="[
                                         'px-2 sm:px-3 py-1.5 rounded border text-xs sm:text-sm font-medium min-w-[32px] sm:min-w-[36px] transition-colors duration-150',
                                         currentPage === page
-                                            ? 'bg-[#7A0C23] text-white border-[#7A0C23]'
+                                            ? 'bg-[#005740] text-white border-[#005740]'
                                             : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
                                     ]"
                                 >
@@ -655,8 +655,8 @@ watch(searchTerm, () => {
                         <!-- Results summary -->
                         <div class="pt-3 border-t border-gray-300 text-center">
                             <p class="text-xs sm:text-sm text-gray-500">
-                                Filtered Results: <span class="font-semibold text-[#7A0C23]">{{ filteredUsageList.length }}</span>
-                                | Total Records: <span class="font-semibold text-[#7A0C23]">{{ usageList.length }}</span>
+                                Filtered Results: <span class="font-semibold text-[#005740]">{{ filteredUsageList.length }}</span>
+                                | Total Records: <span class="font-semibold text-[#005740]">{{ usageList.length }}</span>
                                 <span v-if="activeFilter !== 'all'" class="ml-2 text-xs">
                                     (Filtered by: {{ activeFilter === 'available' ? 'Available' : 'In Use' }})
                                 </span>

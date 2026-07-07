@@ -535,7 +535,7 @@ onBeforeUnmount(() => {
 }
 
 .btn-ok {
-  @apply bg-[#7A0C23] text-white px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90;
+  @apply bg-[#005740] text-white px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90;
 }
 </style>
 

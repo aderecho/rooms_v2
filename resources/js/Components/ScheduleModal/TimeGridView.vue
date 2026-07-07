@@ -195,19 +195,19 @@ const formatSlotTime = (hour, minute) => {
 </script>
 
 <template>
-    <div class="time-grid-view border border-yellow-300 rounded-lg shadow-lg bg-white">
+    <div class="time-grid-view border border-slate-200 rounded-lg shadow-lg bg-white">
         <!-- Header with day labels -->
-        <div class="bg-[#7A0C23] flex border-b border-yellow-600">
-            <div class="w-40 shrink-0 bg-[#7A0C23]"></div>
+        <div class="bg-[#005740] flex border-b border-primary-800">
+            <div class="w-40 shrink-0 bg-[#005740]"></div>
             <div class="flex-grow grid" :style="`grid-template-columns: repeat(${daysToRender.length}, minmax(0, 1fr))`">
                 <div
                     v-for="(day, index) in daysToRender"
                     :key="index"
                     @click="viewMode === 'week' ? emit('selectDate', day.date) : null"
                     :class="[
-                        'p-3 text-center border-r border-yellow-500 last:border-r-0 cursor-pointer transition duration-150',
-                        isTodayHeader(day) ? 'bg-red-800 text-white' : 'bg-[#7A0C23] text-white',
-                        viewMode === 'week' ? 'hover:bg-[#8A1C33]' : ''
+                        'p-3 text-center border-r border-primary-600 last:border-r-0 cursor-pointer transition duration-150',
+                        isTodayHeader(day) ? 'bg-red-800 text-white' : 'bg-[#005740] text-white',
+                        viewMode === 'week' ? 'hover:bg-[#006b4f]' : ''
                     ]"
                 >
                     <div class="font-bold text-lg">{{ getDayName(day.date) }}</div>
@@ -220,15 +220,15 @@ const formatSlotTime = (hour, minute) => {
         </div>
 
         <!-- All Day Events Section -->
-        <div class="bg-[#7A0C23] flex border-b border-yellow-600">
-            <div class="bg-[#7A0C23] w-40 shrink-0 border-r border-yellow-500 py-2 px-1 text-xs font-bold text-white flex items-center justify-center">
+        <div class="bg-[#005740] flex border-b border-primary-800">
+            <div class="bg-[#005740] w-40 shrink-0 border-r border-primary-600 py-2 px-1 text-xs font-bold text-white flex items-center justify-center">
                 All Day
             </div>
             <div class="flex-grow grid" :style="`grid-template-columns: repeat(${daysToRender.length}, minmax(0, 1fr))`">
                 <div
                     v-for="(day, index) in daysToRender"
                     :key="index"
-                    class="p-1 border-r border-yellow-500 last:border-r-0 min-h-[40px]"
+                    class="p-1 border-r border-primary-600 last:border-r-0 min-h-[40px]"
                 >
                     <div
                         v-for="event in day.allDayEvents"
@@ -265,8 +265,8 @@ const formatSlotTime = (hour, minute) => {
                             :class="[
                                 'rounded-md px-2 py-0.5 border font-semibold whitespace-nowrap',
                                 slot.minute === 0
-                                    ? 'bg-red-50 border-red-300 text-[#7A0C23]'
-                                    : 'bg-red-50/60 border-red-200 text-[#7A0C23]/80'
+                                    ? 'bg-red-50 border-red-300 text-[#005740]'
+                                    : 'bg-red-50/60 border-red-200 text-[#005740]/80'
                             ]"
                         >
                             {{ formatSlotTime(slot.hour, slot.minute) }}
@@ -370,7 +370,7 @@ const formatSlotTime = (hour, minute) => {
             @click.self="closeClusterModal"
         >
             <div class="w-full max-w-2xl mx-4 bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100">
-                <div class="bg-[#7A0C23] px-5 py-4 text-white">
+                <div class="bg-[#005740] px-5 py-4 text-white">
                     <h3 class="text-lg font-semibold">Occupied Slot Details</h3>
                     <p class="text-sm opacity-90">{{ clusterModal.date }} | {{ clusterModal.slot }}</p>
                 </div>
@@ -384,14 +384,14 @@ const formatSlotTime = (hour, minute) => {
                         v-for="event in clusterModal.events"
                         :key="event.id"
                         type="button"
-                        class="w-full text-left rounded-xl border border-gray-200 bg-white p-4 hover:border-[#7A0C23]/30 hover:shadow-sm transition"
+                        class="w-full text-left rounded-xl border border-gray-200 bg-white p-4 hover:border-[#005740]/30 hover:shadow-sm transition"
                         @click="handleClusterEventClick(event)"
                     >
                         <div class="flex items-start justify-between gap-3">
                             <p class="text-base font-semibold text-gray-900 truncate">
                                 {{ event.title || event.extendedProps?.subject || 'Untitled' }}
                             </p>
-                            <span class="px-2 py-1 rounded-full text-[11px] font-semibold bg-[#7A0C23]/10 text-[#7A0C23] whitespace-nowrap">
+                            <span class="px-2 py-1 rounded-full text-[11px] font-semibold bg-[#005740]/10 text-[#005740] whitespace-nowrap">
                                 {{ event.extendedProps?.type || 'Event' }}
                             </span>
                         </div>
@@ -405,7 +405,7 @@ const formatSlotTime = (hour, minute) => {
                 <div class="px-4 py-3 border-t flex justify-end">
                     <button
                         type="button"
-                        class="px-4 py-2 rounded-lg text-white bg-[#7A0C23] hover:opacity-90 transition"
+                        class="px-4 py-2 rounded-lg text-white bg-[#005740] hover:opacity-90 transition"
                         @click="closeClusterModal"
                     >
                         Close

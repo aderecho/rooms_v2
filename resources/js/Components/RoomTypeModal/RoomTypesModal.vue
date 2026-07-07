@@ -99,7 +99,7 @@
           <button
             v-if="type === 'add' || type === 'edit'"
             @click="submitForm"
-            class="bg-[#7A0C23] text-white px-4 py-2 rounded-lg"
+            class="bg-[#005740] text-white px-4 py-2 rounded-lg"
             :disabled="formRoomType.processing"
           >
             {{ type === 'edit' ? 'Update' : 'Create' }}
