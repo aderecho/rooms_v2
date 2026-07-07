@@ -55,6 +55,7 @@ Route::match(['GET', 'POST'], '/saml2/logout', [SamlSpController::class, 'logout
 Route::middleware(['auth.session'])->group(function () {
     // Main Dashboard (with pagination and search)
     Route::get('/', [MainDashboardController::class, 'index'])->name('dashboard');
+    Route::get('/main_dashboard', fn () => redirect()->route('main.dashboard'))->name('main_dashboard');
     Route::get('/MainDashboard', [MainDashboardController::class, 'index'])->name('main.dashboard');
 
     // API endpoints for frontend
