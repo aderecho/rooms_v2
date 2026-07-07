@@ -371,8 +371,8 @@ const copyValue = async (value) => {
             </div>
           </div>
 
-          <div class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-            ACS currently records and rejects inbound SAML responses until a maintained SAML toolkit is installed for XML signature and assertion validation.
+          <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+            ACS validates inbound SAML signatures, issuer, audience, recipient, timestamps, and replay protection before logging in matched Rooms users.
           </div>
         </aside>
       </section>
