@@ -11,6 +11,10 @@ class LoginController extends Controller
 {
     public function login(Request $request)
     {
+        if ($request->filled('SAMLResponse')) {
+            return app(SamlSpController::class)->acs($request);
+        }
+
         $credentials = $request->validate([
             'username' => 'required|string',
             'password' => 'required|string',
