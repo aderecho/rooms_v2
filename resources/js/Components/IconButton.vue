@@ -82,7 +82,7 @@ const getColorClass = () => {
   const colorMap = {
     blue: 'text-blue-500 hover:bg-blue-50 border-blue-300',
     green: 'text-green-500 hover:bg-green-50 border-green-300',
-    red: 'text-red-500 hover:bg-red-50 border-red-300',
+    red: 'text-red-500 hover:bg-primary-50 border-red-300',
     gray: 'text-gray-500 hover:bg-gray-50 border-gray-300',
     orange: 'text-orange-500 hover:bg-orange-50 border-orange-300',
     white: 'text-white hover:bg-white/10 border-white'

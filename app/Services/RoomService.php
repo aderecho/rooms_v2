@@ -6,12 +6,13 @@ use App\Models\Room;
 
 class RoomService
 {
-   public function getRooms(int $perPage = 10, ?string $search = null)
+   public function getRooms(int $perPage = 10, ?string $search = null, string $pageName = 'page', ?int $buildingId = null)
     {
         return Room::with('building', 'college', 'department', 'roomType', 'assignedUser')
             ->orderByDesc('created_at')
             ->when($search, fn($query) => $query->where('room_name', 'like', "%{$search}%"))
-            ->paginate($perPage)
+            ->when($buildingId, fn($query) => $query->where('building_id', $buildingId))
+            ->paginate($perPage, ['*'], $pageName)
             ->withQueryString();
     }
 

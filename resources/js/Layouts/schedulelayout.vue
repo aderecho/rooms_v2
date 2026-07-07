@@ -6,6 +6,7 @@ import { router } from '@inertiajs/vue3';
 // Core Components
 import Navbar from '@/Components/Navbar.vue';
 import Sidebar from '@/Components/Sidebar.vue';
+import Breadcrumbs from '@/Components/Breadcrumbs.vue';
 import MessageFunction from '@/Components/MessageFunction.vue';
 
 // ScheduleModal Components
@@ -269,13 +270,17 @@ const roomEquipmentDetailsForModal = computed(() => {
 });
 
 // Layout State
-const sidebarOpen = ref(true);
+const sidebarOpen = ref(typeof window === 'undefined' ? true : window.innerWidth >= 1024);
 const currentView = ref('table');
 const toggleSidebar = () => (sidebarOpen.value = !sidebarOpen.value);
+const showCalendarView = () => {
+    currentView.value = 'calendar';
+    currentCalendarMode.value = 'month';
+};
 
 // Calendar State
 const currentCalendarDate = ref(new Date());
-const currentCalendarMode = ref('list');
+const currentCalendarMode = ref('month');
 const nextEventId = computed(() =>
     (events.value.length > 0 ? Math.max(...events.value.map(e => e.id)) : 0) + 1
 );
@@ -315,6 +320,36 @@ const triggerToast = (type, name = '') => {
 };
 
 const isAdminAccount = computed(() => String(props.currentUserRole || '').toLowerCase() === 'admin');
+
+const scheduleStats = computed(() => {
+    const now = new Date();
+    const sortedUpcoming = events.value
+        .filter((event) => new Date(event.start) >= now)
+        .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+
+    const countByStatus = (status) => events.value.filter((event) => (
+        String(event.extendedProps?.status || '').toLowerCase() === status
+    )).length;
+
+    return {
+        total: events.value.length,
+        approved: countByStatus('approved'),
+        pending: countByStatus('pending'),
+        next: sortedUpcoming[0] || null,
+    };
+});
+
+const formatScheduleDate = (value) => {
+    if (!value) return 'No upcoming schedule';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'No upcoming schedule';
+
+    return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+    });
+};
 
 const handleStatusUpdate = async ({ event, status, onComplete, onError }) => {
     if (!isAdminAccount.value || !event?.dbId) {
@@ -659,7 +694,7 @@ watchEffect(() => {
 </script>
 
 <template>
-    <div class="bg-gray-200 font-sans min-h-screen">
+    <div class="app-shell">
         <MessageFunction
             :show-create-success="toastState.create"
             :show-edit-success="toastState.edit"
@@ -669,40 +704,89 @@ watchEffect(() => {
                 : 'Successfully deleted!'"
         />
 
-        <Navbar @toggleSidebar="toggleSidebar" class="fixed top-0 left-0 right-0 z-30" />
+        <Navbar @toggleSidebar="toggleSidebar" />
 
-        <div class="pt-14 min-h-screen transition-all duration-300">
-            <Sidebar :sidebarOpen="sidebarOpen" :class="['fixed top-14 left-0 h-[calc(100vh-3.5rem)] z-20 transition-all duration-300 w-64',
-                sidebarOpen ? 'translate-x-0' : '-translate-x-full']" />
+        <div class="app-frame">
+            <Sidebar
+                :sidebarOpen="sidebarOpen"
+                :class="[
+                    'fixed left-0 top-[5.5rem] z-20 h-[calc(100vh-5.5rem)] transition-all duration-300 lg:fixed lg:top-0 lg:h-screen',
+                    sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:hidden'
+                ]"
+            />
+            <button
+                v-if="sidebarOpen"
+                type="button"
+                class="fixed inset-0 z-[19] bg-slate-950/35 lg:hidden"
+                aria-label="Close sidebar"
+                @click="sidebarOpen = false"
+            ></button>
 
-            <main :class="['p-6 overflow-y-auto transition-all duration-300',
-                sidebarOpen ? 'ml-64' : 'ml-0']">
-                <!-- Page Header -->
-                <div class="mb-6 flex items-center justify-between">
-                    <div class="text-2xl font-semibold text-[#7A0C23]">Schedule</div>
-                    <div class="text-sm text-gray-500">UPCEBU > SCHEDULES</div>
-                </div>
+            <main class="app-main transition-all duration-300 lg:ml-[245px]">
+                <section class="mb-5 rounded-2xl border border-[#005740]/10 bg-white p-5 shadow-[0_18px_42px_rgba(15,23,42,0.06)]">
+                    <div class="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                        <Breadcrumbs trail="UPCEBU > CALENDAR" />
 
-                <!-- View Toggles -->
-                <div class="mb-6 flex items-center justify-between">
-                    <div class="flex justify-start space-x-2">
-                        <button @click="currentView = 'table'" :class="['px-4 py-2 rounded-lg font-medium transition flex items-center border-2',
-                            currentView === 'table'
-                                ? 'bg-[#7A0C23] text-white shadow-lg border-[#7A0C23]'
-                                : 'bg-white text-[#7A0C23] border-[#7A0C23] hover:bg-red-50']">
-                            Appointment List
-                        </button>
-                        <button @click="currentView = 'calendar'" :class="['px-4 py-2 rounded-lg font-medium transition flex items-center border-2',
-                            currentView === 'calendar'
-                                ? 'bg-[#7A0C23] text-white shadow-lg border-[#7A0C23]'
-                                : 'bg-white text-[#7A0C23] border-[#7A0C23] hover:bg-red-50']">
-                            Calendar View
-                        </button>
+                        <div class="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:min-w-[560px]">
+                            <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                                <p class="text-xs font-semibold text-slate-500">Total</p>
+                                <p class="mt-1 text-2xl font-bold text-slate-950">{{ scheduleStats.total }}</p>
+                            </div>
+                            <div class="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3">
+                                <p class="text-xs font-semibold text-emerald-700">Approved</p>
+                                <p class="mt-1 text-2xl font-bold text-[#005740]">{{ scheduleStats.approved }}</p>
+                            </div>
+                            <div class="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3">
+                                <p class="text-xs font-semibold text-amber-700">Pending</p>
+                                <p class="mt-1 text-2xl font-bold text-amber-700">{{ scheduleStats.pending }}</p>
+                            </div>
+                            <div class="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                                <p class="text-xs font-semibold text-slate-500">Next</p>
+                                <p class="mt-1 truncate text-sm font-bold text-slate-950">
+                                    {{ scheduleStats.next?.title || 'None scheduled' }}
+                                </p>
+                                <p class="mt-0.5 text-xs text-slate-500">{{ formatScheduleDate(scheduleStats.next?.start) }}</p>
+                            </div>
+                        </div>
                     </div>
 
-                    <!-- Quick Add Buttons -->
+                    <div class="mt-5 flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="inline-flex w-full rounded-xl border border-slate-200 bg-slate-100 p-1 sm:w-auto">
+                            <button
+                                type="button"
+                                @click="currentView = 'table'"
+                                :class="[
+                                    'flex-1 rounded-lg px-4 py-2 text-sm font-semibold transition sm:flex-none',
+                                    currentView === 'table'
+                                        ? 'bg-white text-[#005740] shadow-sm'
+                                        : 'text-slate-600 hover:text-slate-950'
+                                ]"
+                            >
+                                Appointment List
+                            </button>
+                            <button
+                                type="button"
+                                @click="showCalendarView"
+                                :class="[
+                                    'flex-1 rounded-lg px-4 py-2 text-sm font-semibold transition sm:flex-none',
+                                    currentView === 'calendar'
+                                        ? 'bg-white text-[#005740] shadow-sm'
+                                        : 'text-slate-600 hover:text-slate-950'
+                                ]"
+                            >
+                                Calendar View
+                            </button>
+                        </div>
 
-                </div>
+                        <button
+                            type="button"
+                            class="inline-flex items-center justify-center rounded-xl bg-[#005740] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#006b4f]"
+                            @click="handleAddAppointment"
+                        >
+                            + New Schedule
+                        </button>
+                    </div>
+                </section>
 
                 <!-- Main Content -->
                 <TableComponent
@@ -749,7 +833,7 @@ watchEffect(() => {
             @click.self="closeConflictNoticeModal"
         >
             <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden" @click.stop>
-                <div class="bg-[#7A0C23] px-6 py-4">
+                <div class="bg-[#005740] px-6 py-4">
                     <h3 class="text-xl font-semibold text-white">Reservation Conflict</h3>
                 </div>
                 <div class="p-6">
@@ -772,7 +856,7 @@ watchEffect(() => {
                     <div class="flex justify-end mt-6">
                         <button
                             type="button"
-                            class="px-4 py-2 rounded-lg font-medium text-white bg-[#7A0C23] hover:opacity-90 transition"
+                            class="px-4 py-2 rounded-lg font-medium text-white bg-[#005740] hover:opacity-90 transition"
                             @click="closeConflictNoticeModal"
                         >
                             Okay
@@ -792,7 +876,7 @@ watchEffect(() => {
                 class="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden"
                 @click.stop
             >
-                <div class="bg-[#7A0C23] px-6 py-4">
+                <div class="bg-[#005740] px-6 py-4">
                     <h3 class="text-xl font-semibold text-white">Delete Appointment</h3>
                 </div>
 
@@ -805,7 +889,7 @@ watchEffect(() => {
 
                     <p class="text-center text-gray-700 mb-4">
                         Are you sure you want to delete
-                        <strong class="text-[#7A0C23]">{{ deleteConfirm.event?.title }}</strong>?
+                        <strong class="text-[#005740]">{{ deleteConfirm.event?.title }}</strong>?
                     </p>
 
                     <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">

@@ -112,17 +112,17 @@ const truncateText = (text, maxLength) => {
 </script>
 
 <template>
-    <div class="w-full overflow-hidden">
+    <div class="w-full overflow-hidden rounded-xl border border-slate-200 bg-white">
         <!-- MAIN CALENDAR TABLE -->
-        <table class="w-full table-fixed border-collapse border border-yellow-600">
+        <table class="w-full table-fixed border-collapse">
 
             <!-- ================= HEADER ================= -->
             <thead>
-                <tr class="bg-[#7A0C23]">
+                <tr class="bg-slate-50">
                     <th
                         v-for="day in days"
                         :key="day"
-                        class="w-[14.28%] px-2 py-3 text-xs font-medium text-white uppercase text-center border border-yellow-600"
+                        class="w-[14.28%] border-b border-slate-200 px-2 py-3 text-center text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500"
                     >
                         {{ day }}
                     </th>
@@ -139,49 +139,49 @@ const truncateText = (text, maxLength) => {
                         v-for="day in week"
                         :key="new Date(day.date).toISOString()"
                         @click="handleDateClick(day)"
-                        class="p-0 border border-yellow-400 align-top cursor-pointer relative"
+                        class="relative cursor-pointer border border-slate-100 p-0 align-top transition"
                         :class="[
                             day.dayClass,
                             day.isToday
-                                ? 'bg-yellow-400 ring-2 ring-inset ring-red-500/50'
+                                ? 'bg-emerald-50 ring-2 ring-inset ring-[#005740]/20'
                                 : isSameMonth(day.date)
-                                ? 'bg-white hover:bg-blue-100'
-                                : 'bg-gray-50 hover:bg-gray-100'
+                                ? 'bg-white hover:bg-emerald-50/50'
+                                : 'bg-slate-50/70 hover:bg-slate-100'
                         ]"
                     >
                         <!-- FIXED HEIGHT CELL (NEVER STRETCHES) -->
-                        <div class="h-36 flex flex-col p-1 overflow-hidden">
+                        <div class="flex h-36 flex-col overflow-hidden p-2">
 
                             <!-- ===== DATE HEADER ===== -->
-                            <div class="flex justify-between items-center text-xs font-bold flex-shrink-0 mb-1">
+                            <div class="mb-2 flex flex-shrink-0 items-center justify-between text-xs font-bold">
                                 <!-- EVENT COUNT BADGE -->
                                 <div
                                     v-if="(day.events || []).length > 0"
-                                    class="text-xs font-semibold text-[#7A0C23] bg-yellow-100 px-2 py-1 rounded-full"
+                                    class="rounded-full bg-[#005740]/10 px-2 py-1 text-[11px] font-semibold text-[#005740]"
                                 >
                                     {{ day.events.length }} {{ day.events.length === 1 ? 'event' : 'events' }}
                                 </div>
 
                                 <!-- DATE NUMBER -->
                                 <span
-                                    class="inline-flex items-center justify-center w-6 h-6 rounded-full text-xs"
-                                    :class="day.isToday ? 'bg-red-600 text-white' : 'text-gray-700'"
+                                    class="inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold"
+                                    :class="day.isToday ? 'bg-[#005740] text-white' : 'text-slate-700'"
                                 >
                                     {{ new Date(day.date).getDate() }}
                                 </span>
                             </div>
 
                             <!-- ===== EVENTS LIST (SCROLLABLE) ===== -->
-                            <div class="flex-grow overflow-y-auto space-y-1 custom-scrollbar">
+                            <div class="custom-scrollbar flex-grow space-y-1 overflow-y-auto">
 
                                 <!-- ALL-DAY EVENTS -->
                                 <div
                                     v-for="event in (day.allDayEvents || [])"
                                     :key="'all-' + event.id"
                                     @click.stop="emit('selectEvent', event)"
-                                    class="text-[10px] px-1.5 py-1 rounded truncate bg-green-100 text-green-800 border-l-2 border-green-500 cursor-pointer"
+                                    class="cursor-pointer truncate rounded-md border-l-2 border-[#005740] bg-[#005740]/10 px-2 py-1 text-[10px] font-medium text-[#005740]"
                                 >
-                                    ⚫ {{ truncateText(event.title || event.extendedProps?.subject, 20) }}
+                                    {{ truncateText(event.title || event.extendedProps?.subject, 20) }}
                                 </div>
 
                                 <!-- TIMED EVENTS -->
@@ -189,7 +189,7 @@ const truncateText = (text, maxLength) => {
                                     v-for="event in (day.events || []).slice(0, 3)"
                                     :key="'time-' + event.id"
                                     @click.stop="emit('selectEvent', event)"
-                                    class="text-[10px] px-1.5 py-1 rounded truncate bg-blue-100 text-blue-800 border-l-2 border-blue-500 cursor-pointer"
+                                    class="cursor-pointer truncate rounded-md border-l-2 border-[#005740] bg-white px-2 py-1 text-[10px] font-medium text-slate-700 shadow-sm ring-1 ring-slate-200"
                                 >
                                     <b>{{ formatTime(event.start) }}</b>
                                     {{ truncateText(event.title || event.extendedProps?.subject, 15) }}
@@ -198,7 +198,7 @@ const truncateText = (text, maxLength) => {
                                 <!-- MORE EVENTS INDICATOR -->
                                 <div
                                     v-if="(day.events || []).length > 3"
-                                    class="text-[10px] text-center bg-yellow-100 text-yellow-800 rounded py-1"
+                                    class="rounded-md bg-slate-100 py-1 text-center text-[10px] font-medium text-slate-600"
                                 >
                                     + {{ day.events.length - 3 }} more
                                 </div>
@@ -206,7 +206,7 @@ const truncateText = (text, maxLength) => {
                                 <!-- NO EVENTS -->
                                 <div
                                     v-if="(day.events || []).length === 0 && (day.allDayEvents || []).length === 0"
-                                    class="text-[10px] text-gray-400 italic text-center pt-2"
+                                    class="pt-3 text-center text-[10px] text-slate-400"
                                 >
                                     No events
                                 </div>
@@ -226,7 +226,7 @@ const truncateText = (text, maxLength) => {
         @click.self="closeClusterModal"
     >
         <div class="w-full max-w-2xl mx-4 bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100">
-            <div class="bg-[#7A0C23] px-5 py-4 text-white">
+            <div class="bg-[#005740] px-5 py-4 text-white">
                 <h3 class="text-lg font-semibold">Day Schedule</h3>
                 <p class="text-sm opacity-90">{{ clusterModal.date }}</p>
             </div>
@@ -240,14 +240,14 @@ const truncateText = (text, maxLength) => {
                     v-for="event in clusterModal.events"
                     :key="event.id"
                     type="button"
-                    class="w-full text-left rounded-xl border border-gray-200 bg-white p-4 hover:border-[#7A0C23]/30 hover:shadow-sm transition"
+                    class="w-full text-left rounded-xl border border-gray-200 bg-white p-4 hover:border-[#005740]/30 hover:shadow-sm transition"
                     @click="handleClusterEventClick(event)"
                 >
                     <div class="flex items-start justify-between gap-3">
                         <p class="text-base font-semibold text-gray-900 truncate">
                             {{ event.title || event.extendedProps?.subject || 'Untitled' }}
                         </p>
-                        <span class="px-2 py-1 rounded-full text-[11px] font-semibold bg-[#7A0C23]/10 text-[#7A0C23] whitespace-nowrap">
+                        <span class="px-2 py-1 rounded-full text-[11px] font-semibold bg-[#005740]/10 text-[#005740] whitespace-nowrap">
                             {{ event.extendedProps?.type || 'Event' }}
                         </span>
                     </div>
@@ -261,7 +261,7 @@ const truncateText = (text, maxLength) => {
             <div class="px-4 py-3 border-t flex justify-end">
                 <button
                     type="button"
-                    class="px-4 py-2 rounded-lg text-white bg-[#7A0C23] hover:opacity-90 transition"
+                    class="px-4 py-2 rounded-lg text-white bg-[#005740] hover:opacity-90 transition"
                     @click="closeClusterModal"
                 >
                     Close

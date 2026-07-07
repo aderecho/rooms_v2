@@ -581,12 +581,12 @@ const handleTimeChange = () => {
             <!-- Department/Office -->
             <label for="deptOffice" class="block text-sm font-medium text-gray-700">Dept/Office *</label>
             <input type="text" id="deptOffice" v-model="appointmentForm.deptOffice" required
-              class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-red-500 focus:border-red-500">
+              class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-primary-500 focus:border-primary-500">
 
             <!-- Organization -->
             <label for="organization" class="block text-sm font-medium text-gray-700 mt-4">Organization *</label>
             <input type="text" id="organization" v-model="appointmentForm.organization" required
-              class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-red-500 focus:border-red-500">
+              class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-primary-500 focus:border-primary-500">
 
             <!-- Holiday Checkbox -->
             <div class="mt-4 flex items-center">
@@ -693,14 +693,14 @@ const handleTimeChange = () => {
             <label v-if="appointmentForm.type !== 'Class'" for="numParticipants" class="block text-sm font-medium text-gray-700 mt-4">Number of Participants *</label>
             <input v-if="appointmentForm.type !== 'Class'" type="number" id="numParticipants"
               v-model.number="appointmentForm.numberParticipants" required min="1"
-              class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-red-500 focus:border-red-500">
+              class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-primary-500 focus:border-primary-500">
 
             <!-- Description -->
             <label v-if="appointmentForm.type === 'Other type of activity' || appointmentForm.type === 'Class'"
                    for="description" class="block text-sm font-medium text-gray-700 mt-4">Description *</label>
             <textarea v-if="appointmentForm.type === 'Other type of activity' || appointmentForm.type === 'Class'"
               id="description" v-model="appointmentForm.description" rows="3" required
-              class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-red-500 focus:border-red-500"></textarea>
+              class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-primary-500 focus:border-primary-500"></textarea>
 
             <!-- Equipment Section -->
             <div class="mt-4">
@@ -743,13 +743,13 @@ const handleTimeChange = () => {
             <!-- Additional Instructions -->
             <label for="additionalInstructions" class="block text-sm font-medium text-gray-700 mt-4">Additional instructions</label>
             <textarea id="additionalInstructions" v-model="appointmentForm.additionalInstructions" rows="3"
-              class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-red-500 focus:border-red-500"></textarea>
+              class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-primary-500 focus:border-primary-500"></textarea>
 
             <!-- File Attachment -->
             <label for="driveLink" class="block text-sm font-medium text-gray-700 mt-4">Attach File <i class="text-gray-400">(i)</i></label>
             <input type="text" id="driveLink" v-model="appointmentForm.driveLink"
               placeholder="Attach your Google Drive Link here"
-              class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-red-500 focus:border-red-500">
+              class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-primary-500 focus:border-primary-500">
 
             <!-- Room Reminders -->
             <div class="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">

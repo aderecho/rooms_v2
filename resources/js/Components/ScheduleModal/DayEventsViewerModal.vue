@@ -24,7 +24,7 @@ defineEmits(['close', 'view-event', 'edit-event', 'delete-event', 'add-appointme
              @click="$emit('view-event', event)">
           <div class="flex justify-between items-start">
             <div>
-              <h4 class="text-lg font-bold text-[#7A0C23]">{{ event.title }}</h4>
+              <h4 class="text-lg font-bold text-[#005740]">{{ event.title }}</h4>
               <div class="flex items-center space-x-4 mt-2 text-sm">
                 <span class="flex items-center">
                   <svg class="w-4 h-4 mr-1 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">

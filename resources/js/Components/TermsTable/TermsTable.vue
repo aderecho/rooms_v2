@@ -394,7 +394,7 @@ const fetchTerms = () => {
                     v-model="searchTerm"
                     @input="handleSearch"
                     placeholder="Search by name, code, or status..."
-                    class="pl-10 pr-4 py-2 w-full border border-yellow-300 rounded-lg focus:ring-2 focus:ring-[#850038] focus:border-transparent outline-none bg-blue-50 shadow-sm"
+                    class="pl-10 pr-4 py-2 w-full border border-primary-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none bg-primary-50 shadow-sm"
                 />
             </div>
 
@@ -416,9 +416,9 @@ const fetchTerms = () => {
         </div>
 
         <!-- Records Table -->
-        <div class="overflow-x-auto">
+        <div class="modern-table-card overflow-x-auto">
             <table class="min-w-full divide-y divide-yellow-300">
-                <thead class="bg-[#850038] text-white">
+                <thead class="bg-[#005740] text-white">
                     <tr>
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
                             TERM NAME
@@ -546,7 +546,7 @@ const fetchTerms = () => {
                     <select
                         v-model="currentPerPage"
                         @change="handleItemsPerPageChange"
-                        class="text-sm border border-gray-300 rounded px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-[#850038] focus:border-transparent"
+                        class="text-sm border border-gray-300 rounded px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-[#005740] focus:border-transparent"
                     >
                         <option value="5">5</option>
                         <option value="10">10</option>
@@ -586,7 +586,7 @@ const fetchTerms = () => {
                             :class="[
                                 'px-3 py-1.5 rounded border text-sm font-medium min-w-[36px] transition-colors duration-150',
                                 currentPage === page
-                                    ? 'bg-[#850038] text-white border-[#850038]'
+                                    ? 'bg-[#005740] text-white border-[#005740]'
                                     : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
                             ]"
                         >
@@ -623,8 +623,8 @@ const fetchTerms = () => {
             <!-- Results summary -->
             <div class="mt-4 pt-3 border-t border-gray-300 text-center">
                 <p class="text-sm text-gray-500">
-                    Filtered Results: <span class="font-semibold text-[#850038]">{{ filteredRecords.length }}</span>
-                    | Total Terms in DB: <span class="font-semibold text-[#850038]">{{ stats.total || 0 }}</span>
+                    Filtered Results: <span class="font-semibold text-[#005740]">{{ filteredRecords.length }}</span>
+                    | Total Terms in DB: <span class="font-semibold text-[#005740]">{{ stats.total || 0 }}</span>
                 </p>
             </div>
         </div>
@@ -645,7 +645,7 @@ const fetchTerms = () => {
                                 option.value === 'set-current'
                                     ? 'bg-purple-100 text-purple-800 border border-purple-400 hover:bg-purple-200'
                                     : getStatusDisplay(option.value).class.replace('cursor-pointer', '').replace('hover:bg-green-200', 'hover:bg-green-300 hover:text-green-900').replace('hover:bg-red-200', 'hover:bg-red-300 hover:text-red-900'),
-                                recordToUpdate?.status === option.value ? 'ring-2 ring-offset-2 ring-[#850038]' : 'hover:shadow-md'
+                                recordToUpdate?.status === option.value ? 'ring-2 ring-offset-2 ring-[#005740]' : 'hover:shadow-md'
                             ]"
                         >
                             {{ option.value === 'set-current' ? 'Set as Current Term' : `Set to ${option.label}` }}
@@ -683,7 +683,7 @@ const fetchTerms = () => {
                             type="text"
                             v-model="formRecord.name"
                             required
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#850038] focus:border-transparent outline-none"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#005740] focus:border-transparent outline-none"
                             placeholder="e.g., First Semester 2024"
                         />
                     </div>
@@ -695,7 +695,7 @@ const fetchTerms = () => {
                                 type="text"
                                 v-model="formRecord.code"
                                 required
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#850038] focus:border-transparent outline-none"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#005740] focus:border-transparent outline-none"
                                 placeholder="e.g., 2024-1"
                             />
                         </div>
@@ -706,7 +706,7 @@ const fetchTerms = () => {
                                 v-model="formRecord.academic_year"
                                 min="2000"
                                 max="2100"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#850038] focus:border-transparent outline-none"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#005740] focus:border-transparent outline-none"
                                 placeholder="e.g., 2024"
                             />
                         </div>
@@ -716,7 +716,7 @@ const fetchTerms = () => {
                         <label class="block text-sm font-medium text-gray-700 mb-1">Term Type</label>
                         <select
                             v-model="formRecord.type"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#850038] focus:border-transparent outline-none"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#005740] focus:border-transparent outline-none"
                         >
                             <option v-for="option in termTypeOptions" :key="option.value" :value="option.value">
                                 {{ option.label }}
@@ -731,7 +731,7 @@ const fetchTerms = () => {
                                 type="date"
                                 v-model="formRecord.startDate"
                                 required
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#850038] focus:border-transparent outline-none"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#005740] focus:border-transparent outline-none"
                             />
                         </div>
                         <div>
@@ -741,7 +741,7 @@ const fetchTerms = () => {
                                 v-model="formRecord.endDate"
                                 required
                                 :min="formRecord.startDate"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#850038] focus:border-transparent outline-none"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#005740] focus:border-transparent outline-none"
                             />
                         </div>
                     </div>
@@ -751,7 +751,7 @@ const fetchTerms = () => {
                         <select
                             v-model="formRecord.status"
                             required
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#850038] focus:border-transparent outline-none"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#005740] focus:border-transparent outline-none"
                         >
                             <option v-for="option in statusOptions" :key="option.value" :value="option.value">
                                 {{ option.label }}

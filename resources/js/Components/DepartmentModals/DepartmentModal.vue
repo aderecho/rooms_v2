@@ -228,7 +228,7 @@ const closeErrorToast = () => (showError.value = false)
   @apply mt-1 w-full border rounded-md p-2;
 }
 .btn-primary {
-  @apply bg-[#7A0C23] text-white px-4 py-2 rounded-lg;
+  @apply bg-[#005740] text-white px-4 py-2 rounded-lg;
 }
 .btn-gray {
   @apply bg-gray-500 text-white px-4 py-2 rounded-lg;

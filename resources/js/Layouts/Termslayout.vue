@@ -1,36 +1,30 @@
 <template>
-  <div class="flex pt-14 min-h-screen transition-all duration-300">
-    <Sidebar :sidebarOpen="sidebarOpen" />
+  <div class="app-shell">
+    <Navbar @toggleSidebar="toggleSidebar" />
 
-    <div class="flex flex-col flex-1 overflow-hidden">
-      <Navbar @toggleSidebar="toggleSidebar" />
+    <div class="app-frame">
+      <Sidebar :sidebarOpen="sidebarOpen" class="fixed left-0 top-[5.5rem] z-20 h-[calc(100vh-5.5rem)] w-64 lg:relative lg:top-0 lg:h-auto lg:min-h-full" />
+      <button
+        v-if="sidebarOpen"
+        type="button"
+        class="fixed inset-0 z-[19] bg-slate-950/35 lg:hidden"
+        aria-label="Close sidebar"
+        @click="sidebarOpen = false"
+      ></button>
 
-      <main class="flex-1 overflow-y-auto p-0 md:p-6 bg-gray-200">
-        <div class="bg-white rounded-lg shadow-md p-0">
-          <div class="p-6">
-            <div class="mb-2">
-              <div class="p-6">
-                <div class="mb-1">
-                  <h1 class="ml-2 text-xl md:text-2xl font-bold text-[#7A0C23] mb-1">Terms Management</h1>
-                  <div class="absolute right-2 top-16 z-20">
-                    <div class="text-sm text-gray-500 whitespace-nowrap"></div>
-                  </div>
+      <main class="app-main">
+        <div class="app-page-header">
+          <Breadcrumbs trail="UPCEBU > TERMS" />
+        </div>
 
-                  <div class="mt-12 absolute right-8 top-10 z-20">
-                    <div class="mr-7 mt-12 text-sm text-gray-500 whitespace-nowrap">
-                      <span>UPCEBU > TERMS</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="ml-5 flex items-center bg-gray-100 rounded-full w-400 md:w-fit p-1 mb-2">
+        <div class="app-content-panel">
+          <div>
+            <div class="mb-4 flex w-fit items-center rounded-xl bg-slate-100 p-1">
               <button
                 @click="setActiveTab('list')"
                 :class="[
-                  'flex-1 font-medium py-2 px-6 rounded-full transition text-sm md:text-base',
-                  activeTab === 'list' ? 'bg-[#850038] text-white' : 'text-black hover:bg-gray-200'
+                  'rounded-lg px-5 py-2 text-sm font-semibold transition',
+                  activeTab === 'list' ? 'bg-[#005740] text-white shadow-sm' : 'text-slate-700 hover:bg-white'
                 ]"
               >
                 List of Records
@@ -84,6 +78,7 @@ import { ref, onMounted } from 'vue'
 import { router } from '@inertiajs/vue3'
 import Navbar from '@/Components/Navbar.vue'
 import Sidebar from '@/Components/Sidebar.vue'
+import Breadcrumbs from '@/Components/Breadcrumbs.vue'
 import MessageFunction from '@/Components/MessageFunction.vue'
 import TermsTable from '@/Components/TermsTable/TermsTable.vue'
 
@@ -119,17 +114,8 @@ const props = defineProps({
     }
 })
 
-// Debug: Log props to console
-console.log('TermsLayout Props Received:', {
-    terms: props.terms,
-    pagination: props.pagination,
-    filters: props.filters,
-    stats: props.stats,
-    current_term: props.current_term
-})
-
 // State for sidebar visibility
-const sidebarOpen = ref(true)
+const sidebarOpen = ref(typeof window === 'undefined' ? true : window.innerWidth >= 1024)
 
 // Function to toggle the sidebar's state
 const toggleSidebar = () => (sidebarOpen.value = !sidebarOpen.value)

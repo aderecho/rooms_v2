@@ -111,7 +111,7 @@ const closeFullDetailsModal = () => {
                             <div class="flex justify-end">
                                 <button
                                     @click="viewFullItemDetails(item)"
-                                    class="text-xs text-[#7A0C23] hover:text-[#5a071a] font-medium hover:underline"
+                                    class="text-xs text-[#005740] hover:text-[#5a071a] font-medium hover:underline"
                                 >
                                     View Full Details
                                 </button>
@@ -160,7 +160,7 @@ const closeFullDetailsModal = () => {
                                 <td class="px-3 sm:px-4 py-2 sm:py-3">
                                     <button
                                         @click="viewFullItemDetails(item)"
-                                        class="text-xs text-[#7A0C23] hover:text-[#5a071a] font-medium hover:underline"
+                                        class="text-xs text-[#005740] hover:text-[#5a071a] font-medium hover:underline"
                                     >
                                         View Full Details
                                     </button>

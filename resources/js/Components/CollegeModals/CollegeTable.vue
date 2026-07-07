@@ -1,7 +1,7 @@
 <template>
   <div class="p-4 bg-white min-h-screen">
     <div class="max-w-7xl mx-auto">
-      <h6 class="font-bold text-l text-[#7A0C23] mt-4">College List 📃</h6>
+      <h6 class="font-bold text-l text-[#005740] mt-4">College List 📃</h6>
 
       <!-- Add Button -->
   
@@ -23,15 +23,15 @@
       <!-- Search -->
       <div class="relative w-full sm:w-96 mb-4">
         <input type="text" v-model="search" placeholder="Search college by name..."
-          class="max-w-[300px] border border-yellow-300 rounded-lg pl-10 pr-4 py-2 w-full bg-blue-50" />
+          class="max-w-[300px] border border-primary-200 rounded-lg pl-10 pr-4 py-2 w-full bg-primary-50" />
         <IconButton icon="search" size="sm" color="gray" class="absolute left-3 top-1/2 -translate-y-1/2"
           @click="search" />
       </div>
 
       <!-- Table -->
-      <div class="bg-white rounded-xl shadow-2xl border border-yellow-300 overflow-hidden">
+      <div class="modern-table-card">
         <table class="min-w-full text-sm table-fixed">
-          <thead class="bg-[#7A0C23] text-white">
+          <thead class="bg-[#005740] text-white">
             <tr>
               <th class="px-4 py-3 text-left">College Name</th>
               <th class="px-4 py-3 text-left">Code</th>
@@ -79,7 +79,7 @@
               <button v-for="link in colleges.links" :key="link.label"
                 @click="link.url && router.visit(link.url, { preserveState: true })" v-html="link.label"
                 :disabled="!link.url" class="px-3 py-1 border rounded text-sm"
-                :class="link.active ? 'bg-[#7A0C23] text-white' : 'bg-white'" />
+                :class="link.active ? 'bg-[#005740] text-white' : 'bg-white'" />
             </div>
           </div>
         </div>

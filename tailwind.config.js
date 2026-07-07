@@ -27,6 +27,21 @@ export default {
 
     theme: {
         extend: {
+            colors: {
+                primary: {
+                    DEFAULT: '#005740',
+                    50: '#e7f5f0',
+                    100: '#cde9df',
+                    200: '#9bd3c1',
+                    300: '#68bca1',
+                    400: '#35a681',
+                    500: '#0f8566',
+                    600: '#006b4f',
+                    700: '#005740',
+                    800: '#004434',
+                    900: '#003126',
+                },
+            },
             fontFamily: {
                 sans: ['Figtree', ...defaultTheme.fontFamily.sans],
             },

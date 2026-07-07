@@ -56,7 +56,7 @@ const errorMessage = ref('');
 const infoMessage = ref('');
 
 // --- Layout State ---
-const sidebarVisible = ref(true)
+const sidebarVisible = ref(typeof window === 'undefined' ? true : window.innerWidth >= 1024)
 const toggleSidebar = () => {
     sidebarVisible.value = !sidebarVisible.value
 }
@@ -331,9 +331,6 @@ const handleDataUpdated = async (data, type) => {
 // Toggle to show all data
 const toggleShowAllData = () => {
     showAllData.value = !showAllData.value;
-    // Log all user data to console for debugging
-    console.log('All User Data:', users.value);
-    console.log('Database Fields:', users.value.length > 0 ? Object.keys(users.value[0]) : 'No users');
 
     if (showAllData.value) {
         triggerInfo(`Showing all ${users.value.length} users with full database fields`);
@@ -405,23 +402,10 @@ const closeInfoToast = () => {
 // Watch for props changes to update users
 watch(() => props.initialUsers, (newUsers) => {
     users.value = newUsers || [];
-    // Log the data structure when users are loaded
-    if (newUsers && newUsers.length > 0) {
-        console.log('User Data Structure:', {
-            count: newUsers.length,
-            firstUser: newUsers[0],
-            fields: Object.keys(newUsers[0])
-        });
-    }
 }, { immediate: true });
 
 // Lifecycle
 onMounted(() => {
-    console.log('Users loaded via Inertia:', users.value.length);
-    console.log('Colleges:', props.colleges.length);
-    console.log('Departments:', props.departments.length);
-    console.log('Stats:', props.stats);
-
     // Show welcome message
     if (users.value.length === 0) {
         triggerInfo('No users found in database. Click "Add New User" to create your first user.');
@@ -432,7 +416,7 @@ onMounted(() => {
 </script>
 
 <template>
-    <div class="bg-gray-200 font-sans min-h-screen">
+    <div class="app-shell">
         <!-- Toast Notifications -->
         <MessageFunction
             :show-create-success="showCreateSuccess"
@@ -453,30 +437,39 @@ onMounted(() => {
         <!-- Loading Overlay for modal operations -->
         <div v-if="isLoading" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div class="bg-white p-6 rounded-lg shadow-xl">
-                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-[#7A0C23] mx-auto"></div>
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-[#005740] mx-auto"></div>
                 <p class="mt-4 text-gray-600">Processing...</p>
             </div>
         </div>
 
         <Navbar @toggle-sidebar="toggleSidebar" />
 
-        <div class="flex pt-10 min-h-screen transition-all duration-300">
+        <div class="app-frame">
             <!-- <Sidebar v-show="sidebarVisible" class="fixed top-5 left-0 h-full z-20 w-64 lg:relative" /> -->
-             <Sidebar  :sidebarOpen="sidebarVisible" class="fixed top-5 left-0 h-full z-20 w-64 lg:relative"/>
+             <Sidebar :sidebarOpen="sidebarVisible" class="fixed left-0 top-[5.5rem] z-20 h-[calc(100vh-5.5rem)] w-64 lg:relative lg:top-0 lg:h-auto lg:min-h-full"/>
+             <button
+                v-if="sidebarVisible"
+                type="button"
+                class="fixed inset-0 z-[19] bg-slate-950/35 lg:hidden"
+                aria-label="Close sidebar"
+                @click="sidebarVisible = false"
+             ></button>
 
-            <main id="main" class="flex-1 overflow-y-auto p-0 md:p-6 bg-gray-200">
-                <UserAccountTable
-                    :users="users"
-                    :loading="isTableLoading"
-                    :colleges="colleges"
-                    :departments="departments"
-                    :can-manage-users="canManageUsers"
-                    :show-all-data="showAllData"
-                    @open-modal="handleOpenModal"
-                    @search="fetchUsers"
-                    @search-query-updated="(query) => searchForm.search = query"
-                    @toggle-show-all="toggleShowAllData"
-                />
+            <main id="main" class="app-main">
+                <section class="app-content-panel p-0">
+                    <UserAccountTable
+                        :users="users"
+                        :loading="isTableLoading"
+                        :colleges="colleges"
+                        :departments="departments"
+                        :can-manage-users="canManageUsers"
+                        :show-all-data="showAllData"
+                        @open-modal="handleOpenModal"
+                        @search="fetchUsers"
+                        @search-query-updated="(query) => searchForm.search = query"
+                        @toggle-show-all="toggleShowAllData"
+                    />
+                </section>
             </main>
         </div>
 

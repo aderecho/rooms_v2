@@ -317,7 +317,7 @@ onMounted(() => {
                 <!-- Loading overlay -->
                 <div v-if="isLoading" class="absolute inset-0 bg-white bg-opacity-70 flex items-center justify-center rounded-lg z-10">
                     <div class="text-center">
-                        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-[#7A0C23] mx-auto mb-4"></div>
+                        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-[#005740] mx-auto mb-4"></div>
                         <p class="text-gray-600">Processing...</p>
                     </div>
                 </div>

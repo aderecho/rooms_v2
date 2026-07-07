@@ -1,50 +1,87 @@
 <script setup>
-import { ref } from 'vue'
-import Navbar from '@/Components/Navbar.vue'
-import Sidebar from '@/Components/Sidebar.vue'
-import BuildingTable from '@/Components/BuildingModals/BuildingTable.vue'
+import { computed, ref, watch } from 'vue';
+import { router, usePage } from '@inertiajs/vue3';
+import ManagementLayout from '@/Layouts/ManagementLayout.vue';
+import BuildingTable from '@/Components/BuildingModals/BuildingTable.vue';
+import RoomTable from '@/Components/RoomModals/RoomTable.vue';
 
-const sidebarVisible = ref(true)
+const page = usePage();
+const filters = computed(() => page.props.filters || {});
+const stats = computed(() => page.props.stats || {});
+const activeTab = ref(filters.value.active_tab === 'rooms' ? 'rooms' : 'buildings');
 
-const toggleSidebar = () => {
-  sidebarVisible.value = !sidebarVisible.value
-}
+watch(
+    () => filters.value.active_tab,
+    (tab) => {
+        activeTab.value = tab === 'rooms' ? 'rooms' : 'buildings';
+    }
+);
+
+const setTab = (tab) => {
+    activeTab.value = tab;
+    router.get('/BuildingDashboard', {
+        ...filters.value,
+        active_tab: tab,
+    }, {
+        preserveState: true,
+        replace: true,
+    });
+};
 </script>
 
 <template>
-  <div class="flex flex-col h-screen bg-gray-200">
+    <ManagementLayout title="Buildings & Rooms" breadcrumb="UPCEBU > BUILDINGS & ROOMS">
+        <div class="space-y-5">
+            <section class="grid gap-4 md:grid-cols-3">
+                <div class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                    <div class="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Buildings</div>
+                    <div class="mt-2 text-3xl font-bold text-slate-950">{{ stats.buildings ?? 0 }}</div>
+                </div>
+                <div class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                    <div class="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Rooms</div>
+                    <div class="mt-2 text-3xl font-bold text-[#005740]">{{ stats.rooms ?? 0 }}</div>
+                </div>
+                <div class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                    <div class="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Current Result</div>
+                    <div class="mt-2 text-3xl font-bold text-slate-950">
+                        {{ activeTab === 'rooms' ? (stats.filtered_rooms ?? 0) : ($page.props.buildings?.total ?? 0) }}
+                    </div>
+                </div>
+            </section>
 
-    <Navbar @toggleSidebar="toggleSidebar" />
-
-    <div
-      :class="[
-        'flex flex-1 h-full overflow-hidden relative mt-14',
-        sidebarVisible ? 'lg:grid lg:grid-cols-[256px_1fr]' : 'flex'
-      ]"
-    >
-      <Sidebar
-        :sidebarOpen="sidebarVisible"
-        @toggleSidebar="toggleSidebar"
-        :class="[
-          'lg:relative lg:translate-x-0 lg:h-full',
-          sidebarVisible ? 'lg:block' : 'lg:hidden'
-        ]"
-      />
-
-      <main class="flex-1 p-6 overflow-y-auto transition-all duration-300">
-        <div class="mb-6">
-          <div class="flex justify-between items-start">
-            <h1 class="text-xl md:text-2xl font-bold text-[#7A0C23]">
-              Building Management
-            </h1>
-
-            <div class="text-sm text-gray-500">
-              <span>UPCEBU &gt; BUILDING</span>
+            <div class="flex w-fit items-center rounded-xl bg-slate-100 p-1">
+                <button
+                    type="button"
+                    class="rounded-lg px-5 py-2 text-sm font-semibold transition"
+                    :class="activeTab === 'buildings' ? 'bg-[#005740] text-white shadow-sm' : 'text-slate-700 hover:bg-white'"
+                    @click="setTab('buildings')"
+                >
+                    Buildings
+                </button>
+                <button
+                    type="button"
+                    class="rounded-lg px-5 py-2 text-sm font-semibold transition"
+                    :class="activeTab === 'rooms' ? 'bg-[#005740] text-white shadow-sm' : 'text-slate-700 hover:bg-white'"
+                    @click="setTab('rooms')"
+                >
+                    Rooms
+                </button>
             </div>
-          </div>
+
+            <BuildingTable
+                v-if="activeTab === 'buildings'"
+                :search="filters.building_search"
+                search-route="/BuildingDashboard"
+                search-param="building_search"
+                :extra-params="{ active_tab: 'buildings' }"
+            />
+            <RoomTable
+                v-else
+                :search="filters.room_search"
+                search-route="/BuildingDashboard"
+                search-param="room_search"
+                :extra-params="{ active_tab: 'rooms', building_id: filters.building_id }"
+            />
         </div>
-        <BuildingTable />
-      </main>
-    </div>
-  </div>
+    </ManagementLayout>
 </template>

@@ -1,37 +1,56 @@
 <?php
 
-use Inertia\Inertia;
-use Illuminate\Support\Facades\Route;
-use Illuminate\Http\Request;
+use App\Http\Controllers\BuildingController;
+use App\Http\Controllers\AnalyticsController;
+use App\Http\Controllers\CollegeController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DepartmentController;
+use App\Http\Controllers\EquipmentController;
+use App\Http\Controllers\GoogleAuthController;
 use App\Http\Controllers\LoginController;
 use App\Http\Controllers\MainDashboardController;
-use App\Http\Controllers\BuildingController;
-use App\Http\Controllers\CollegeController;
-use App\Http\Controllers\DepartmentController;
-use App\Http\Controllers\RoomTypeController;
 use App\Http\Controllers\RoomController;
-use App\Http\Controllers\EquipmentController;
+use App\Http\Controllers\RoomTypeController;
+use App\Http\Controllers\SamlConfigurationController;
+use App\Http\Controllers\SamlMetadataController;
+use App\Http\Controllers\SamlSpController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\ScheduleNotificationController;
 use App\Http\Controllers\TermController;
 use App\Http\Controllers\UserAccountController;
-use App\Http\Controllers\DashboardController;
-
-function authCheck(Request $request)
-{
-    return $request->session()->has('user');
-}
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
 
 // Login Routes
 Route::get('/login', function () {
-    if (authCheck(request())) {
+    if (request()->session()->has('user')) {
         return redirect('/MainDashboard');
     }
+
     return Inertia::render('Login');
 })->name('login');
 
 Route::post('/login', [LoginController::class, 'login']);
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
+Route::get('/auth/google', [GoogleAuthController::class, 'redirect'])
+    ->middleware('throttle:10,1')
+    ->name('auth.google.redirect');
+Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback'])
+    ->middleware('throttle:10,1')
+    ->name('auth.google.callback');
+
+Route::get('/saml2/metadata', SamlMetadataController::class)->name('saml.metadata');
+Route::get('/saml2/login', [SamlSpController::class, 'redirectToIdp'])->name('saml.login');
+Route::get('/saml2/acs', fn () => redirect()->route('saml.login'))->name('saml.acs.start');
+Route::get('/saml2/user-not-found', function (Request $request) {
+    return Inertia::render('SamlUserNotFound', [
+        'email' => $request->session()->get('saml_email'),
+        'reason' => $request->session()->get('saml_reason', 'not_found'),
+    ]);
+})->name('saml.user-not-found');
+Route::post('/saml2/acs', [SamlSpController::class, 'acs'])->name('saml.acs');
+Route::match(['GET', 'POST'], '/saml2/logout', [SamlSpController::class, 'logout'])->name('saml.logout');
 
 Route::middleware(['auth.session'])->group(function () {
     // Main Dashboard (with pagination and search)
@@ -53,6 +72,9 @@ Route::middleware(['auth.session'])->group(function () {
         ->except(['create', 'edit', 'show'])
         ->parameters(['CollegeDashboard' => 'college']);
 
+    // Analytics
+    Route::get('/Analytics', [AnalyticsController::class, 'index'])->name('analytics.index');
+
     // Department Management
     Route::resource('Departments', DepartmentController::class)
         ->except(['create', 'edit', 'show'])
@@ -68,8 +90,8 @@ Route::middleware(['auth.session'])->group(function () {
         ->except(['create', 'edit', 'show'])
         ->parameters(['Rooms' => 'room']);
 
-    // Equipment Management Routes
-    Route::get('/equipment', [EquipmentController::class, 'index'])->name('equipment.index');
+    // Equipment page is hidden from the application UI.
+    Route::redirect('/equipment', '/BuildingDashboard')->name('equipment.index');
 
     // Equipment API Routes
     Route::prefix('/api/equipment')->group(function () {
@@ -96,8 +118,8 @@ Route::middleware(['auth.session'])->group(function () {
     Route::delete('/api/schedule-notifications/clear-all', [ScheduleNotificationController::class, 'clearAll'])->name('schedule-notifications.clear-all');
     Route::patch('/api/schedule-notifications/{notification}/read', [ScheduleNotificationController::class, 'markRead'])->name('schedule-notifications.read');
 
-    // Terms Management
-    Route::get('/Terms', [TermController::class, 'index'])->name('terms.index');
+    // Terms page is hidden from the application UI.
+    Route::redirect('/Terms', '/SamlIntegration')->name('terms.index');
 
     // User Account Management
 
@@ -107,6 +129,13 @@ Route::middleware(['auth.session'])->group(function () {
     Route::delete('/user-accounts/{userAccount}', [UserAccountController::class, 'destroy'])->name('user-accounts.destroy');
     Route::post('/user-accounts/{userAccount}/change-status', [UserAccountController::class, 'changeStatus'])->name('user-accounts.change-status');
     Route::post('/user-accounts/bulk-actions', [UserAccountController::class, 'bulkActions'])->name('user-accounts.bulk-actions');
+
+    // SAML Integration Management
+    Route::get('/SamlIntegration', [SamlConfigurationController::class, 'index'])->name('saml-configurations.index');
+    Route::post('/saml-configurations', [SamlConfigurationController::class, 'store'])->name('saml-configurations.store');
+    Route::put('/saml-configurations/{samlConfiguration}', [SamlConfigurationController::class, 'update'])->name('saml-configurations.update');
+    Route::delete('/saml-configurations/{samlConfiguration}', [SamlConfigurationController::class, 'destroy'])->name('saml-configurations.destroy');
+
     // Report Generation
     Route::prefix('/api/reports')->group(function () {
         Route::get('/room-utilization', function (Request $request) {

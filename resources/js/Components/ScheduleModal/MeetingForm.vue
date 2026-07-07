@@ -11,7 +11,7 @@ defineProps({
     <h4 class="text-md font-semibold mb-2 text-gray-800">Meeting Details</h4>
     <label for="agenda" class="block text-sm font-medium text-gray-700">Agenda*</label>
     <input type="text" id="agenda" v-model="formData.agenda" required
-      class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-red-500 focus:border-red-500">
+      class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-primary-500 focus:border-primary-500">
 
     <label for="requester" class="block text-sm font-medium text-gray-700 mt-4">Requester*</label>
     <input
@@ -20,7 +20,7 @@ defineProps({
       type="text"
       readonly
       required
-      class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 bg-gray-100 text-gray-700 focus:ring-red-500 focus:border-red-500"
+      class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 bg-gray-100 text-gray-700 focus:ring-primary-500 focus:border-primary-500"
     >
 
     </div>

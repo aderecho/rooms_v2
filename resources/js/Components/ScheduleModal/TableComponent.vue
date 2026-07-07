@@ -136,7 +136,7 @@ const getStatusOptionPanelClass = (option) => {
     }
 
     if (isSelected) {
-        return `border-[#7A0C23] ring-2 ${getStatusMeta(option.value).ringClass}`;
+        return `border-[#005740] ring-2 ${getStatusMeta(option.value).ringClass}`;
     }
 
     return 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50';
@@ -279,29 +279,28 @@ const resetPagination = () => {
 </script>
 
 <template>
-    <div class="bg-white shadow-lg rounded-xl overflow-auto">
+    <div class="modern-table-card">
         <!-- Table Header with Pagination Controls -->
-        <div class="flex flex-col sm:flex-row justify-between items-center p-4 border-b border-yellow-400">
-            <div class="text-lg font-semibold text-[#7A0C23] mb-2 sm:mb-0">
-                Appointments ({{ processedEvents.length }})
-            </div>
-            <div class="flex items-center space-x-4">
-                <div class="flex items-center space-x-2">
-                    <span class="text-sm text-gray-600">Show:</span>
-                    <select v-model="itemsPerPage" @change="resetPagination"
-                            class="text-sm border border-gray-300 rounded px-2 py-1 bg-white">
-                        <option value="5">5</option>
-                        <option value="10">10</option>
-                        <option value="20">20</option>
-                        <option value="50">50</option>
-                    </select>
-                    <span class="text-sm text-gray-600">entries</span>
+        <div class="modern-table-header">
+            <div>
+                <div class="modern-table-title">
+                    Appointments
                 </div>
+                <p class="modern-table-subtitle">{{ processedEvents.length }} schedule records</p>
+            </div>
+            <div class="modern-table-controls">
+                <span>Rows</span>
+                <select v-model="itemsPerPage" @change="resetPagination">
+                    <option value="5">5</option>
+                    <option value="10">10</option>
+                    <option value="20">20</option>
+                    <option value="50">50</option>
+                </select>
             </div>
         </div>
 
         <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-yellow-500" style="table-layout: fixed; width: 100%;">
+            <table class="schedule-table min-w-full divide-y divide-slate-200" style="table-layout: fixed; width: 100%;">
                 <colgroup>
                     <col style="width: 20%;"> <!-- APPOINTMENT -->
                     <col style="width: 12%;"> <!-- ROOM -->
@@ -313,64 +312,64 @@ const resetPagination = () => {
                     <col style="width: 9%;">  <!-- STATUS -->
                     <col style="width: 14%;"> <!-- ACTIONS -->
                 </colgroup>
-                <thead class="bg-[#7A0C23] text-white">
-                    <tr>
-                        <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap overflow-hidden text-ellipsis">APPOINTMENT</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap overflow-hidden text-ellipsis">ROOM</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap overflow-hidden text-ellipsis">BUILDING</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap overflow-hidden text-ellipsis">COLLEGE</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap overflow-hidden text-ellipsis">START DATE</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap overflow-hidden text-ellipsis">TIME SLOT</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap overflow-hidden text-ellipsis">EVENT TYPE</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap overflow-hidden text-ellipsis">STATUS</th>
-                        <th class="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider whitespace-nowrap overflow-hidden text-ellipsis">ACTIONS</th>
+                <thead class="!bg-[#005740] text-white">
+                    <tr class="!bg-[#005740] hover:!bg-[#005740]">
+                        <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-[0.08em] whitespace-nowrap overflow-hidden text-ellipsis">Appointment</th>
+                        <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-[0.08em] whitespace-nowrap overflow-hidden text-ellipsis">Room</th>
+                        <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-[0.08em] whitespace-nowrap overflow-hidden text-ellipsis">Building</th>
+                        <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-[0.08em] whitespace-nowrap overflow-hidden text-ellipsis">College</th>
+                        <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-[0.08em] whitespace-nowrap overflow-hidden text-ellipsis">Date</th>
+                        <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-[0.08em] whitespace-nowrap overflow-hidden text-ellipsis">Time</th>
+                        <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-[0.08em] whitespace-nowrap overflow-hidden text-ellipsis">Type</th>
+                        <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-[0.08em] whitespace-nowrap overflow-hidden text-ellipsis">Status</th>
+                        <th class="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-[0.08em] whitespace-nowrap overflow-hidden text-ellipsis">Actions</th>
                     </tr>
                 </thead>
 
-                <tbody class="divide-y divide-yellow-400 bg-white">
+                <tbody class="divide-y divide-slate-100 bg-white">
                     <tr
                         v-for="item in paginatedEvents"
                         :key="item.id"
                         @click="handleRowClick(item.eventObject)"
-                        class="transition duration-150 cursor-pointer hover:bg-blue-50"
+                        class="cursor-pointer transition duration-150 hover:bg-emerald-50/40"
                     >
                         <!-- APPOINTMENT Column -->
                         <td class="px-4 py-4">
-                            <div class="text-sm font-bold text-[#7A0C23] truncate" :title="item.title">{{ item.title }}</div>
-                            <div class="text-xs text-gray-500 mt-1 truncate" :title="item.description">{{ item.description }}</div>
+                            <div class="truncate text-sm font-semibold text-slate-950" :title="item.title">{{ item.title }}</div>
+                            <div class="mt-1 truncate text-xs text-slate-500" :title="item.description">{{ item.description || 'No description' }}</div>
                         </td>
 
                         <!-- ROOM Column (Only show room name, no "Occupied" badge) -->
                         <td class="px-4 py-4">
-                            <div class="text-sm font-medium text-gray-900 truncate" :title="item.room">
+                            <div class="truncate text-sm font-medium text-[#005740]" :title="item.room">
                                 {{ item.room }}
                             </div>
                         </td>
 
                         <!-- BUILDING Column -->
                         <td class="px-4 py-4">
-                            <div class="text-sm text-gray-700 truncate" :title="item.building">{{ item.building }}</div>
+                            <div class="truncate text-sm text-slate-600" :title="item.building">{{ item.building }}</div>
                         </td>
 
                         <!-- COLLEGE Column -->
                         <td class="px-4 py-4">
-                            <div class="text-sm text-gray-700 truncate" :title="item.college">{{ item.college }}</div>
+                            <div class="truncate text-sm text-slate-600" :title="item.college">{{ item.college }}</div>
                         </td>
 
                         <!-- START DATE Column -->
                         <td class="px-4 py-4">
-                            <div class="text-sm text-gray-700 truncate" :title="item.startDate">{{ item.startDate }}</div>
+                            <div class="truncate text-sm text-slate-600" :title="item.startDate">{{ item.startDate }}</div>
                         </td>
 
                         <!-- TIME SLOT Column -->
                         <td class="px-4 py-4">
-                            <div class="text-sm text-gray-700 truncate" :title="item.timeSlot">{{ item.timeSlot }}</div>
+                            <div class="truncate text-sm font-medium text-slate-700" :title="item.timeSlot">{{ item.timeSlot }}</div>
                         </td>
 
                         <!-- EVENT TYPE Column -->
                         <td class="px-4 py-4">
                             <span :class="[
-                                'px-2 py-1 rounded-full text-xs font-medium truncate inline-block max-w-full',
+                                'inline-block max-w-full truncate rounded-full px-2.5 py-1 text-xs font-semibold',
                                 item.eventType === 'Class' ? 'bg-blue-100 text-blue-800' :
                                 item.eventType === 'Meeting' ? 'bg-green-100 text-green-800' :
                                 item.eventType === 'Event' ? 'bg-purple-100 text-purple-800' :
@@ -392,35 +391,35 @@ const resetPagination = () => {
                                     v-if="isAdmin && !isFinalAppointmentStatus(item.status)"
                                     @click="openStatusModal(item.eventObject, $event)"
                                     title="Change Status"
-                                    class="text-amber-600 hover:text-amber-800 transition-transform hover:scale-110"
+                                    class="grid h-8 w-8 place-items-center rounded-lg border border-amber-100 bg-amber-50 text-amber-700 transition hover:bg-amber-100"
                                 >
                                     <FontAwesomeIcon :icon="icons.clipboardList" class="h-5 w-5" />
                                 </button>
                                 <span
                                     v-else-if="isAdmin && isFinalAppointmentStatus(item.status)"
                                     title="Status is closed and cannot be changed"
-                                    class="text-gray-300 cursor-not-allowed inline-flex"
+                                    class="grid h-8 w-8 cursor-not-allowed place-items-center rounded-lg border border-slate-100 bg-slate-50 text-slate-300"
                                 >
                                     <FontAwesomeIcon :icon="icons.clipboardList" class="h-5 w-5" />
                                 </span>
                                 <button
                                     @click="handleAction('view-details', item.eventObject, $event)"
                                     title="View Details"
-                                    class="text-blue-500 hover:text-blue-700 transition-transform hover:scale-110"
+                                    class="grid h-8 w-8 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-[#005740]/30 hover:text-[#005740]"
                                 >
                                     <FontAwesomeIcon :icon="icons.eye" class="h-5 w-5" />
                                 </button>
                                 <button
                                     @click="handleAction('edit-event', item.eventObject, $event)"
                                     title="Edit Event"
-                                    class="text-green-600 hover:text-green-800 transition-transform hover:scale-110"
+                                    class="grid h-8 w-8 place-items-center rounded-lg border border-emerald-100 bg-emerald-50 text-[#005740] transition hover:bg-emerald-100"
                                 >
                                     <FontAwesomeIcon :icon="icons.edit" class="h-5 w-5" />
                                 </button>
                                 <button
                                     @click="handleAction('delete-event', item.eventObject, $event)"
                                     title="Delete Event"
-                                    class="text-red-600 hover:text-red-800 transition-transform hover:scale-110"
+                                    class="grid h-8 w-8 place-items-center rounded-lg border border-red-100 bg-red-50 text-red-600 transition hover:bg-red-100"
                                 >
                                     <FontAwesomeIcon :icon="icons.delete" class="h-5 w-5" />
                                 </button>
@@ -444,8 +443,8 @@ const resetPagination = () => {
         </div>
 
         <!-- Pagination Footer -->
-        <div v-if="processedEvents.length > 0" class="flex flex-col sm:flex-row items-center justify-between p-4 border-t border-gray-200 bg-gray-50">
-            <div class="text-sm text-gray-600 mb-2 sm:mb-0">
+        <div v-if="processedEvents.length > 0" class="flex flex-col items-center justify-between gap-3 border-t border-slate-200 bg-slate-50 px-5 py-4 sm:flex-row">
+            <div class="text-sm text-slate-600">
                 Showing {{ showingRange.start }} to {{ showingRange.end }} of {{ showingRange.total }} entries
             </div>
 
@@ -455,7 +454,7 @@ const resetPagination = () => {
                     @click="prevPage"
                     :disabled="currentPage === 1"
                     :class="[
-                        'flex items-center px-3 py-1.5 rounded border text-sm transition-colors',
+                        'flex items-center rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors',
                         currentPage === 1
                             ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-300'
                             : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
@@ -471,10 +470,10 @@ const resetPagination = () => {
                         v-for="page in totalPages"
                         :key="page"
                         @click="goToPage(page)"
-                        :class="[
-                            'px-3 py-1.5 rounded border text-sm min-w-[36px] transition-colors',
+                    :class="[
+                            'min-w-[36px] rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors',
                             currentPage === page
-                                ? 'bg-[#7A0C23] text-white border-[#7A0C23]'
+                                ? 'bg-[#005740] text-white border-[#005740]'
                                 : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
                         ]"
                     >
@@ -487,7 +486,7 @@ const resetPagination = () => {
                     @click="nextPage"
                     :disabled="currentPage === totalPages"
                     :class="[
-                        'flex items-center px-3 py-1.5 rounded border text-sm transition-colors',
+                        'flex items-center rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors',
                         currentPage === totalPages
                             ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-300'
                             : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
@@ -510,7 +509,7 @@ const resetPagination = () => {
             @click.self="closeStatusModal"
         >
             <div class="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 flex flex-col max-h-[min(90vh,36rem)] overflow-hidden" @click.stop>
-                <div class="shrink-0 bg-[#7A0C23] px-5 py-4">
+                <div class="shrink-0 bg-[#005740] px-5 py-4">
                     <h3 class="text-lg font-semibold text-white leading-tight">
                         Change Appointment Status
                     </h3>
@@ -574,7 +573,7 @@ const resetPagination = () => {
                     </button>
                     <button
                         type="button"
-                        class="px-4 py-2 rounded-lg font-medium text-white bg-[#7A0C23] hover:opacity-90 transition disabled:opacity-50"
+                        class="px-4 py-2 rounded-lg font-medium text-white bg-[#005740] hover:opacity-90 transition disabled:opacity-50"
                         :disabled="statusModal.loading || isBlockedStatusOption(statusModal.selectedStatus)"
                         @click="openStatusConfirm"
                     >
@@ -591,14 +590,14 @@ const resetPagination = () => {
             @click.self="closeStatusConfirm"
         >
             <div class="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden" @click.stop>
-                <div class="bg-[#7A0C23] px-6 py-4">
+                <div class="bg-[#005740] px-6 py-4">
                     <h3 class="text-xl font-semibold text-white">Confirm Status Change</h3>
                 </div>
 
                 <div class="p-6">
                     <p class="text-center text-gray-700 mb-4">
                         Are you sure you want to change the status of
-                        <strong class="text-[#7A0C23]">{{ statusModal.event?.title || 'this appointment' }}</strong>
+                        <strong class="text-[#005740]">{{ statusModal.event?.title || 'this appointment' }}</strong>
                         from
                         <strong :class="getAppointmentStatusTextClass(currentAppointmentStatus)">{{ currentStatusLabel }}</strong>
                         to
@@ -616,7 +615,7 @@ const resetPagination = () => {
                         </button>
                         <button
                             type="button"
-                            class="px-4 py-2 rounded-lg font-medium text-white bg-[#7A0C23] hover:opacity-90 transition disabled:opacity-50"
+                            class="px-4 py-2 rounded-lg font-medium text-white bg-[#005740] hover:opacity-90 transition disabled:opacity-50"
                             :disabled="statusModal.loading"
                             @click="confirmStatusChange"
                         >
@@ -701,9 +700,17 @@ td:last-child {
     margin-left: 0.75rem;
 }
 
-/* Row hover effect */
-tr:hover {
-    background-color: #f0f9ff;
+/* Keep header fixed while allowing body row hover. */
+.schedule-table thead,
+.schedule-table thead tr,
+.schedule-table thead tr:hover,
+.schedule-table thead th {
+    background-color: #005740 !important;
+    color: #ffffff !important;
+}
+
+.schedule-table tbody tr:hover {
+    background-color: rgba(236, 253, 245, 0.4);
 }
 
 /* Pagination button styles */

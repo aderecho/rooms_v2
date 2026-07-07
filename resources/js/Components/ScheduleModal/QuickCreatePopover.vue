@@ -128,12 +128,12 @@ const onMoreOptions = () => {
             @click.self="$emit('close')"
         >
             <div
-                class="fixed bg-white rounded-xl shadow-2xl border border-yellow-300 z-50 w-[340px] overflow-hidden"
+                class="fixed bg-white rounded-xl shadow-2xl border border-slate-200 z-50 w-[340px] overflow-hidden"
                 :style="positionStyle"
                 @click.stop
             >
                 <!-- Header -->
-                <div class="bg-[#7A0C23] px-4 py-2.5 flex items-center justify-between">
+                <div class="bg-[#005740] px-4 py-2.5 flex items-center justify-between">
                     <div class="flex items-center gap-2 text-white">
                         <FontAwesomeIcon :icon="faCalendarDay" class="w-3.5 h-3.5" />
                         <h3 class="text-sm font-semibold">New Appointment</h3>
@@ -155,7 +155,7 @@ const onMoreOptions = () => {
                             v-model="title"
                             type="text"
                             placeholder="Add title"
-                            class="w-full text-base font-medium border-0 border-b-2 border-gray-200 focus:border-[#7A0C23] outline-none py-2 px-1 transition placeholder:text-gray-400"
+                            class="w-full text-base font-medium border-0 border-b-2 border-gray-200 focus:border-[#005740] outline-none py-2 px-1 transition placeholder:text-gray-400"
                             @keyup.enter="onSave"
                         />
                     </div>
@@ -171,8 +171,8 @@ const onMoreOptions = () => {
                                 :class="[
                                     'text-xs px-3 py-1 rounded-full font-medium transition border',
                                     eventType === t.id
-                                        ? 'bg-[#7A0C23] text-white border-[#7A0C23]'
-                                        : 'bg-white text-gray-600 border-gray-200 hover:border-[#7A0C23] hover:text-[#7A0C23]'
+                                        ? 'bg-[#005740] text-white border-[#005740]'
+                                        : 'bg-white text-gray-600 border-gray-200 hover:border-[#005740] hover:text-[#005740]'
                                 ]"
                             >
                                 {{ t.label }}
@@ -188,13 +188,13 @@ const onMoreOptions = () => {
                         <input
                             v-model="startTime"
                             type="time"
-                            class="text-sm border border-gray-200 rounded-md px-2 py-1.5 w-28 focus:border-[#7A0C23] outline-none"
+                            class="text-sm border border-gray-200 rounded-md px-2 py-1.5 w-28 focus:border-[#005740] outline-none"
                         />
                         <span class="text-gray-400">–</span>
                         <input
                             v-model="endTime"
                             type="time"
-                            class="text-sm border border-gray-200 rounded-md px-2 py-1.5 w-28 focus:border-[#7A0C23] outline-none"
+                            class="text-sm border border-gray-200 rounded-md px-2 py-1.5 w-28 focus:border-[#005740] outline-none"
                         />
                     </div>
 
@@ -202,7 +202,7 @@ const onMoreOptions = () => {
                         <FontAwesomeIcon :icon="faDoorOpen" class="w-3.5 h-3.5 text-gray-400" />
                         <select
                             v-model="room"
-                            class="text-sm border border-gray-200 rounded-md px-2 py-1.5 flex-1 focus:border-[#7A0C23] outline-none bg-white"
+                            class="text-sm border border-gray-200 rounded-md px-2 py-1.5 flex-1 focus:border-[#005740] outline-none bg-white"
                         >
                             <option v-if="rooms.length === 0" value="">No rooms available</option>
                             <option v-for="r in rooms" :key="r" :value="r">{{ r }}</option>
@@ -215,14 +215,14 @@ const onMoreOptions = () => {
                     <button
                         type="button"
                         @click="onMoreOptions"
-                        class="text-sm text-[#7A0C23] hover:underline font-medium"
+                        class="text-sm text-[#005740] hover:underline font-medium"
                     >
                         More options
                     </button>
                     <button
                         type="button"
                         @click="onSave"
-                        class="px-5 py-1.5 bg-[#7A0C23] text-white text-sm rounded-lg hover:bg-red-800 transition font-semibold shadow-sm"
+                        class="px-5 py-1.5 bg-[#005740] text-white text-sm rounded-lg hover:bg-primary-800 transition font-semibold shadow-sm"
                     >
                         Save
                     </button>
