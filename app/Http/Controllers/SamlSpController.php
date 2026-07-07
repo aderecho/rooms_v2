@@ -12,6 +12,9 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
+use OneLogin\Saml2\Constants;
+use OneLogin\Saml2\Response as SamlResponse;
+use OneLogin\Saml2\Settings as SamlSettings;
 
 class SamlSpController extends Controller
 {
@@ -163,6 +166,13 @@ XML;
     {
         $encoded = (string) $request->input('SAMLResponse', '');
         throw_if($encoded === '', new \RuntimeException('Missing SAMLResponse.'));
+        throw_if(blank($configuration->x509_cert), new \RuntimeException('SAML IdP signing certificate is not configured.'));
+
+        $this->syncSamlServerUrl($request);
+
+        $response = new SamlResponse($this->samlSettings($configuration), $encoded);
+
+        throw_unless($response->isValid(), new \RuntimeException($response->getError(false) ?: 'Invalid SAMLResponse signature or assertion.'));
 
         $xml = base64_decode($encoded, true);
         throw_if($xml === false, new \RuntimeException('Invalid SAMLResponse encoding.'));
@@ -181,7 +191,11 @@ XML;
         $recipient = $this->attribute($xpath, '//*[local-name()="SubjectConfirmationData"]', 'Recipient');
         $notBefore = $this->attribute($xpath, '//*[local-name()="Conditions"]', 'NotBefore');
         $notOnOrAfter = $this->attribute($xpath, '//*[local-name()="Conditions"]', 'NotOnOrAfter');
-        $email = $this->value($xpath, 'string(//*[local-name()="NameID"])');
+        $email = trim((string) $response->getNameId());
+        $attributes = $this->flattenAttributes($response->getAttributes());
+        if ($email === '') {
+            $email = $this->emailFromAttributes($attributes);
+        }
 
         throw_if($status !== 'urn:oasis:names:tc:SAML:2.0:status:Success', new \RuntimeException('SAML response was not successful.'));
         throw_if($issuer !== $configuration->entity_id, new \RuntimeException('SAML issuer does not match the active IdP.'));
@@ -211,8 +225,76 @@ XML;
             'response_id' => $responseId,
             'assertion_id' => $assertionId,
             'email' => $email,
-            'attributes' => $this->attributes($xpath),
+            'attributes' => $attributes ?: $this->attributes($xpath),
         ];
+    }
+
+    private function samlSettings(SamlConfiguration $configuration): SamlSettings
+    {
+        return new SamlSettings([
+            'strict' => true,
+            'debug' => config('app.debug'),
+            'baseurl' => rtrim((string) config('app.url'), '/'),
+            'sp' => [
+                'entityId' => config('services.saml.sp_entity_id', url('/saml2/metadata')),
+                'assertionConsumerService' => [
+                    'url' => url('/saml2/acs'),
+                    'binding' => Constants::BINDING_HTTP_POST,
+                ],
+                'singleLogoutService' => [
+                    'url' => url('/saml2/logout'),
+                    'binding' => Constants::BINDING_HTTP_REDIRECT,
+                ],
+            ],
+            'idp' => [
+                'entityId' => $configuration->entity_id,
+                'singleSignOnService' => [
+                    'url' => $configuration->sso_url ?: $configuration->entity_id,
+                    'binding' => Constants::BINDING_HTTP_REDIRECT,
+                ],
+                'singleLogoutService' => [
+                    'url' => $configuration->slo_url ?: $configuration->sso_url ?: $configuration->entity_id,
+                    'binding' => Constants::BINDING_HTTP_REDIRECT,
+                ],
+                'x509cert' => $configuration->x509_cert,
+            ],
+            'security' => [
+                'wantXMLValidation' => true,
+                'wantMessagesSigned' => false,
+                'wantAssertionsSigned' => false,
+                'wantNameId' => true,
+                'rejectUnsolicitedResponsesWithInResponseTo' => true,
+                'destinationStrictlyMatches' => true,
+            ],
+        ]);
+    }
+
+    private function syncSamlServerUrl(Request $request): void
+    {
+        $acsPath = parse_url(url('/saml2/acs'), PHP_URL_PATH) ?: '/saml2/acs';
+
+        $_SERVER['REQUEST_URI'] = $acsPath;
+        $_SERVER['SCRIPT_NAME'] = '';
+        $_SERVER['QUERY_STRING'] = '';
+        $_SERVER['HTTPS'] = $request->isSecure() ? 'on' : 'off';
+    }
+
+    private function flattenAttributes(array $attributes): array
+    {
+        return collect($attributes)
+            ->map(fn ($value) => is_array($value) ? implode(', ', array_filter(array_map('strval', $value))) : (string) $value)
+            ->all();
+    }
+
+    private function emailFromAttributes(array $attributes): string
+    {
+        foreach (['email', 'mail', 'EmailAddress', 'emailAddress', 'urn:oid:0.9.2342.19200300.100.1.3'] as $key) {
+            if (! blank($attributes[$key] ?? null)) {
+                return trim((string) $attributes[$key]);
+            }
+        }
+
+        return '';
     }
 
     private function findUser(string $email): ?UserAccount

@@ -3,6 +3,8 @@
 use App\Models\SamlConfiguration;
 use App\Models\UserAccount;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use RobRichards\XMLSecLibs\XMLSecurityDSig;
+use RobRichards\XMLSecLibs\XMLSecurityKey;
 
 uses(RefreshDatabase::class);
 
@@ -169,12 +171,15 @@ test('acs redirects to user not found page when saml email is not registered in 
 
 function seedOnePortalSamlIdp(): void
 {
+    $material = samlSigningMaterial();
+
     SamlConfiguration::create([
         'name' => 'OnePortal Local IdP',
         'slug' => 'oneportal-local-idp',
         'mode' => 'idp',
         'entity_id' => 'http://127.0.0.1:8012/saml2/metadata',
         'sso_url' => 'http://127.0.0.1:8012/saml2/sso',
+        'x509_cert' => $material['cert'],
         'signing_algo' => 'rsa-sha256',
         'status' => 'active',
         'is_active' => true,
@@ -186,7 +191,7 @@ function onePortalSamlResponse(string $email, string $responseId = '_response1',
     $now = now()->utc();
     $expires = $now->copy()->addMinutes(5);
 
-    return <<<XML
+    $xml = <<<XML
 <?xml version="1.0" encoding="UTF-8"?>
 <samlp:Response xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol" xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" ID="{$responseId}" Version="2.0" IssueInstant="{$now->toIso8601ZuluString()}" Destination="http://localhost:8000/saml2/acs">
   <saml:Issuer>http://127.0.0.1:8012/saml2/metadata</saml:Issuer>
@@ -206,7 +211,68 @@ function onePortalSamlResponse(string $email, string $responseId = '_response1',
       <saml:Attribute Name="name"><saml:AttributeValue>Standard User</saml:AttributeValue></saml:Attribute>
       <saml:Attribute Name="role"><saml:AttributeValue>user</saml:AttributeValue></saml:Attribute>
     </saml:AttributeStatement>
+    <saml:AuthnStatement AuthnInstant="{$now->toIso8601ZuluString()}">
+      <saml:AuthnContext>
+        <saml:AuthnContextClassRef>urn:oasis:names:tc:SAML:2.0:ac:classes:PasswordProtectedTransport</saml:AuthnContextClassRef>
+      </saml:AuthnContext>
+    </saml:AuthnStatement>
   </saml:Assertion>
 </samlp:Response>
 XML;
+
+    return signSamlAssertion($xml, $assertionId);
+}
+
+function samlSigningMaterial(): array
+{
+    static $material = null;
+
+    if ($material !== null) {
+        return $material;
+    }
+
+    $privateKey = openssl_pkey_new([
+        'private_key_bits' => 2048,
+        'private_key_type' => OPENSSL_KEYTYPE_RSA,
+    ]);
+    openssl_pkey_export($privateKey, $privateKeyPem);
+
+    $csr = openssl_csr_new(['commonName' => 'OnePortal Test IdP'], $privateKey);
+    $certificate = openssl_csr_sign($csr, null, $privateKey, 365);
+    openssl_x509_export($certificate, $certificatePem);
+
+    return $material = [
+        'private_key' => $privateKeyPem,
+        'cert' => $certificatePem,
+    ];
+}
+
+function signSamlAssertion(string $xml, string $assertionId): string
+{
+    $material = samlSigningMaterial();
+    $document = new DOMDocument();
+    $document->preserveWhiteSpace = false;
+    $document->formatOutput = false;
+    $document->loadXML($xml);
+
+    $xpath = new DOMXPath($document);
+    $assertion = $xpath->query('//*[local-name()="Assertion" and @ID="'.$assertionId.'"]')->item(0);
+    $issuer = $xpath->query('*[local-name()="Issuer"]', $assertion)->item(0);
+
+    $signature = new XMLSecurityDSig();
+    $signature->setCanonicalMethod(XMLSecurityDSig::EXC_C14N);
+    $signature->addReference(
+        $assertion,
+        XMLSecurityDSig::SHA256,
+        ['http://www.w3.org/2000/09/xmldsig#enveloped-signature', XMLSecurityDSig::EXC_C14N],
+        ['id_name' => 'ID', 'force_uri' => true]
+    );
+
+    $key = new XMLSecurityKey(XMLSecurityKey::RSA_SHA256, ['type' => 'private']);
+    $key->loadKey($material['private_key'], false);
+    $signature->sign($key);
+    $signature->add509Cert($material['cert'], true, false);
+    $signature->insertSignature($assertion, $issuer?->nextSibling);
+
+    return $document->saveXML();
 }
