@@ -170,10 +170,6 @@ XML;
 
         $this->syncSamlServerUrl($request);
 
-        $response = new SamlResponse($this->samlSettings($configuration), $encoded);
-
-        throw_unless($response->isValid(), new \RuntimeException($response->getError(false) ?: 'Invalid SAMLResponse signature or assertion.'));
-
         $xml = base64_decode($encoded, true);
         throw_if($xml === false, new \RuntimeException('Invalid SAMLResponse encoding.'));
 
@@ -182,6 +178,18 @@ XML;
         throw_unless($loaded, new \RuntimeException('Invalid SAMLResponse XML.'));
 
         $xpath = new DOMXPath($document);
+        $inResponseTo = $this->attribute($xpath, '/*[local-name()="Response"]', 'InResponseTo');
+        if ($inResponseTo !== '') {
+            throw_unless(
+                SamlReplayRecord::where('request_id', $inResponseTo)->where('expires_at', '>', now())->exists(),
+                new \RuntimeException('SAML response does not match an active login request.')
+            );
+        }
+
+        $response = new SamlResponse($this->samlSettings($configuration), $encoded);
+
+        throw_unless($response->isValid($inResponseTo ?: null), new \RuntimeException($response->getError(false) ?: 'Invalid SAMLResponse signature or assertion.'));
+
         $responseId = $this->attribute($xpath, '/*[local-name()="Response"]', 'ID');
         $assertionId = $this->attribute($xpath, '//*[local-name()="Assertion"]', 'ID');
         $issuer = $this->value($xpath, 'string(/*[local-name()="Response"]/*[local-name()="Issuer"])');
