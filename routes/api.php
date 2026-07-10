@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\ScheduleImportController;
 use App\Http\Controllers\EquipmentController;
 use App\Http\Controllers\RoomController;
 use Illuminate\Support\Facades\Route;
@@ -21,3 +22,9 @@ Route::prefix('v1')->group(function () {
     Route::get('/room/list/{id}', [RoomController::class, 'apiShow']);
 });
 
+Route::prefix('v1')->group(function () {
+
+    Route::post('/schedules/import', [ScheduleImportController::class, 'import']);
+    Route::delete('/schedules/import/{id}/rollback', [ScheduleImportController::class, 'rollback']);
+
+});
