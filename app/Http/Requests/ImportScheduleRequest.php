@@ -25,6 +25,8 @@ class ImportScheduleRequest extends FormRequest
             //
             'schedules' => 'required|array|min:1',
 
+        'schedules.*.class_id' => 'required|integer',
+
         'schedules.*.room_id' => 'required|integer',
 
         'schedules.*.event_title' => 'required|string|max:255',

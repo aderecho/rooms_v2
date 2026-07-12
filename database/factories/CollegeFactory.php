@@ -16,7 +16,8 @@ class CollegeFactory extends Factory
             'college_name' => $this->faker->unique()->company . ' College',
             'college_code' => $this->faker->unique()->regexify('[A-Z]{3,4}'),
             'description' => $this->faker->paragraph,
-            'dean_id' => UserAccount::factory(), // Will be set later
+            // 'dean_id' => UserAccount::factory(), // Will be set later
+            'dean_id' => null, // Will be set later
             'contact_email' => $this->faker->companyEmail,
             'contact_phone' => $this->faker->phoneNumber,
         ];

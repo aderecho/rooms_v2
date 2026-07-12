@@ -17,16 +17,19 @@ class ScheduleImportService
             $summary = [
                 'received' => count($data['schedules']),
                 'inserted' => 0,
+                'updated' => 0,
                 'failed' => 0,
             ];
 
-            $inserted = [];
+            $insertedSchedules = [];
+            $updatedSchedules = [];
             $errors = [];
             $processed = [];
             $importLog = ScheduleImportLog::create([
                 'user_id' => auth()->id(),
                 'source' => 'JSON Import',
                 'total_records' => 0,
+                'updated_records' => 0,
                 'inserted_records' => 0,
                 'failed_records' => 0,
                 'errors' => [],
@@ -35,21 +38,9 @@ class ScheduleImportService
             foreach ($data['schedules'] as $schedule) {
 
 
-            /**
-             * Step 1: Check Duplicate Inside Import File
-             */
-            // $key = implode('|', [
-            //     $schedule['room_id'],
-            //     $schedule['event_type'],
-            //     $schedule['course_code'] ?? '',
-            //     $schedule['event_title'],
-            //     $schedule['section'] ?? '',
-            //     $schedule['faculty_id'] ?? '',
-            //     $schedule['date'],
-            //     $schedule['start_time'],
-            //     $schedule['end_time'],
-            // ]);
-
+    /**
+     * Step 1: Check Duplicate Inside Import File
+     */
             $key = sprintf(
                 '%s|%s|%s|%s|%s|%s|%s|%s|%s',
                 $schedule['room_id'],
@@ -89,9 +80,13 @@ class ScheduleImportService
 
     if ($result['success']) {
 
-                    $summary['inserted']++;
-
-                    $inserted[] = $result['schedule'];
+                   if ($result['action'] === 'inserted') {
+                        $summary['inserted']++;
+                        $insertedSchedules[] = $result['schedule'];
+                    } else {
+                        $summary['updated']++;
+                        $updatedSchedules[] = $result['schedule'];
+                    }
 
                 } else {
 
@@ -106,6 +101,7 @@ class ScheduleImportService
             $importLog->update([
                 'total_records' => $summary['received'],
                 'inserted_records' => $summary['inserted'],
+                'updated_records' => $summary['updated'],
                 'failed_records' => $summary['failed'],
                 'errors' => $errors,
             ]);
@@ -120,7 +116,9 @@ class ScheduleImportService
 
                 'summary' => $summary,
 
-                'inserted' => $inserted,
+                'inserted' => $insertedSchedules,
+
+                'updated' => $updatedSchedules,
 
                 'errors' => $errors
 
@@ -144,6 +142,20 @@ class ScheduleImportService
     // private function saveSchedule(array $schedule): array --- deleted to add rollback ---
     private function saveSchedule(array $schedule, int $importLogId): array
     {
+        /**
+     * Step 1:
+     * Determine whether this is a new schedule or an update.
+     */
+        $existingSchedule = Schedule::where(
+            'class_id',
+            $schedule['class_id']
+        )->first();
+
+        logger([
+            'class_id' => $schedule['class_id'],
+            'existing' => $existingSchedule ? true : false,
+        ]);
+
          /**
          * Step 0: Validate Time Range
          */
@@ -158,30 +170,34 @@ class ScheduleImportService
             ];
         }
         /**
-         * Step 1: (Next)
+         * Step 2: (Next)
          * Check Duplicate Import
          */
+
+        if (!$existingSchedule) {
+
         $duplicate = $this->checkDuplicateSchedule($schedule);
 
         if ($duplicate) {
 
-            return [
-                'success' => false,
-                'error' => [
-                    'event_title' => $schedule['event_title'],
-                    'reason' => 'Duplicate schedule already exists.',
-                    'existing_schedule' => [
-                        'title' => $duplicate->event_title,
-                        'date' => $duplicate->date,
-                        'start_time' => $duplicate->start_time,
-                        'end_time' => $duplicate->end_time,
-                    ]
-                ],
-            ];
+                return [
+                    'success' => false,
+                    'error' => [
+                        'event_title' => $schedule['event_title'],
+                        'reason' => 'Duplicate schedule already exists.',
+                        'existing_schedule' => [
+                            'title' => $duplicate->event_title,
+                            'date' => $duplicate->date,
+                            'start_time' => $duplicate->start_time,
+                            'end_time' => $duplicate->end_time,
+                        ]
+                    ],
+                ];
 
+            }
         }
         /**
-         * Step 2: Validate Room
+         * Step 3: Validate Room
          */
         if ($error = $this->validateRoom($schedule['room_id'])) {
 
@@ -195,9 +211,9 @@ class ScheduleImportService
         }
 
         /**
-         * Step 3: Check Room Conflict
+         * Step 4: Check Room Conflict
          */
-        $conflict = $this->checkRoomConflict($schedule);
+        $conflict = $this->checkRoomConflict($schedule, $existingSchedule);
 
         if ($conflict) {
 
@@ -218,10 +234,10 @@ class ScheduleImportService
         }
 
         /**
-         * Step 4: (Next)
+         * Step 5: (Next)
          * Check Faculty Conflict
          */
-        $facultyConflict = $this->checkFacultyConflict($schedule);
+        $facultyConflict = $this->checkFacultyConflict($schedule, $existingSchedule);
 
         if ($facultyConflict) {
 
@@ -243,23 +259,32 @@ class ScheduleImportService
         
 
         /**
-         * Step 5:
+         * Step 6:
          * Save to Database
          */
         $schedule['import_log_id'] = $importLogId;
-        logger($schedule);
 
-        $createdSchedule = Schedule::create($schedule);
+        $savedSchedule = Schedule::updateOrCreate(
+            [
+                'class_id' => $schedule['class_id'],
+            ],
+            $schedule
+        );
 
         return [
             'success' => true,
-            'schedule' => $createdSchedule,
+            'schedule' => $savedSchedule,
+            'action' => $savedSchedule->wasRecentlyCreated ? 'inserted' : 'updated',
         ];
     }
 
-    private function checkRoomConflict(array $schedule): ?Schedule
+    private function checkRoomConflict(array $schedule,?Schedule $existingSchedule = null): ?Schedule
     {
-         $query = Schedule::query();
+        $query = Schedule::query();
+
+        if ($existingSchedule) {
+            $query->where('id', '!=', $existingSchedule->id);
+        }
 
         $query->where('room_id', $schedule['room_id']);
         $query->where('date', $schedule['date']);
@@ -293,29 +318,22 @@ class ScheduleImportService
         return null;
     }
 
-    private function checkFacultyConflict(array $schedule)
+    private function checkFacultyConflict(array $schedule,?Schedule $existingSchedule = null)
     {
-        // return Schedule::where('faculty_id', $schedule['faculty_id'])
-        //     ->whereDate('date', $schedule['date'])
-        //     ->where(function ($query) use ($schedule) {
-
-        //         $query->where('start_time', '<', $schedule['end_time'])
-        //             ->where('end_time', '>', $schedule['start_time']);
-
-        //     })
-        //     ->first();
-        // Skip faculty conflict checking if no faculty is assigned
-
-        // accepts the faculty even if null
         if (empty($schedule['faculty_id'])) {
-            return null;
-        }
+        return null;
+    }
 
-        return Schedule::where('faculty_id', $schedule['faculty_id'])
+        $query = Schedule::where('faculty_id', $schedule['faculty_id'])
             ->whereDate('date', $schedule['date'])
             ->where('start_time', '<', $schedule['end_time'])
-            ->where('end_time', '>', $schedule['start_time'])
-            ->first();
+            ->where('end_time', '>', $schedule['start_time']);
+
+        if ($existingSchedule) {
+            $query->where('id', '!=', $existingSchedule->id);
+        }
+
+        return $query->first();
     }
 
     private function checkDuplicateSchedule(array $schedule)
