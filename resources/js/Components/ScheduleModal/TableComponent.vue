@@ -1,16 +1,11 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
-import { faEye, faPenToSquare, faTrash, faClock, faChevronLeft, faChevronRight, faClipboardList } from '@fortawesome/free-solid-svg-icons';
+import { faChevronLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons';
 import { isFinalAppointmentStatus, APPOINTMENT_STATUS_OPTIONS, getAppointmentStatusMeta, normalizeAppointmentStatus, getCurrentStatusPanelClass, isStatusTransitionDisabled, getAppointmentStatusLabel, getAppointmentStatusTextClass } from '@/utils/scheduleStatus';
 import StatusBadge from '@/Components/ScheduleModal/StatusBadge.vue';
 
 const icons = {
-    eye: faEye,
-    edit: faPenToSquare,
-    delete: faTrash,
-    clock: faClock,
-    clipboardList: faClipboardList,
     chevronLeft: faChevronLeft,
     chevronRight: faChevronRight,
 };
@@ -386,42 +381,46 @@ const resetPagination = () => {
 
                         <!-- ACTIONS Column -->
                         <td class="px-4 py-4">
-                            <div class="flex items-center justify-center space-x-2" @click.stop>
+                            <div class="schedule-actions" @click.stop>
                                 <button
                                     v-if="isAdmin && !isFinalAppointmentStatus(item.status)"
                                     @click="openStatusModal(item.eventObject, $event)"
                                     title="Change Status"
-                                    class="grid h-8 w-8 place-items-center rounded-lg border border-amber-100 bg-amber-50 text-amber-700 transition hover:bg-amber-100"
+                                    aria-label="Change appointment status"
+                                    class="schedule-action schedule-action-status"
                                 >
-                                    <FontAwesomeIcon :icon="icons.clipboardList" class="h-5 w-5" />
+                                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 6h10M9 12h10M9 18h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="m4.5 6 .8.8L7 5M4.5 12l.8.8L7 11M4.5 18l.8.8L7 17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
                                 </button>
                                 <span
                                     v-else-if="isAdmin && isFinalAppointmentStatus(item.status)"
                                     title="Status is closed and cannot be changed"
-                                    class="grid h-8 w-8 cursor-not-allowed place-items-center rounded-lg border border-slate-100 bg-slate-50 text-slate-300"
+                                    class="schedule-action is-disabled"
                                 >
-                                    <FontAwesomeIcon :icon="icons.clipboardList" class="h-5 w-5" />
+                                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 6h10M9 12h10M9 18h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="m4.5 6 .8.8L7 5M4.5 12l.8.8L7 11M4.5 18l.8.8L7 17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
                                 </span>
                                 <button
                                     @click="handleAction('view-details', item.eventObject, $event)"
                                     title="View Details"
-                                    class="grid h-8 w-8 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-[#005740]/30 hover:text-[#005740]"
+                                    aria-label="View appointment details"
+                                    class="schedule-action"
                                 >
-                                    <FontAwesomeIcon :icon="icons.eye" class="h-5 w-5" />
+                                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 12s3-5 8.5-5 8.5 5 8.5 5-3 5-8.5 5-8.5-5-8.5-5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="12" r="2.5" stroke="currentColor" stroke-width="1.8"/></svg>
                                 </button>
                                 <button
                                     @click="handleAction('edit-event', item.eventObject, $event)"
                                     title="Edit Event"
-                                    class="grid h-8 w-8 place-items-center rounded-lg border border-emerald-100 bg-emerald-50 text-[#005740] transition hover:bg-emerald-100"
+                                    aria-label="Edit appointment"
+                                    class="schedule-action schedule-action-edit"
                                 >
-                                    <FontAwesomeIcon :icon="icons.edit" class="h-5 w-5" />
+                                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m14.5 5.5 4 4M5 19l1-4 9.5-9.5a2.1 2.1 0 0 1 3 3L9 18l-4 1Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
                                 </button>
                                 <button
                                     @click="handleAction('delete-event', item.eventObject, $event)"
                                     title="Delete Event"
-                                    class="grid h-8 w-8 place-items-center rounded-lg border border-red-100 bg-red-50 text-red-600 transition hover:bg-red-100"
+                                    aria-label="Delete appointment"
+                                    class="schedule-action schedule-action-danger"
                                 >
-                                    <FontAwesomeIcon :icon="icons.delete" class="h-5 w-5" />
+                                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 7h14M9 7V4h6v3M8 10v8M12 10v8M16 10v8M7 7l1 14h8l1-14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
                                 </button>
                             </div>
                         </td>
@@ -670,9 +669,19 @@ td:nth-child(8), th:nth-child(8) { width: 11%; }
 td:nth-child(9), th:nth-child(9) { width: 12%; }
 
 /* Action buttons container */
-.flex.items-center.justify-center.space-x-3 {
-    min-width: 120px;
-}
+.schedule-actions { display: flex; min-width: 144px; align-items: center; justify-content: center; gap: .4rem; }
+.schedule-action { display: grid; width: 2.15rem; height: 2.15rem; place-items: center; border: 1px solid #d9e3de; border-radius: .65rem; background: #fff; color: #52635e; box-shadow: 0 2px 5px rgba(33,53,47,.04); transition: border-color .18s ease, background-color .18s ease, color .18s ease, box-shadow .18s ease, transform .18s ease; }
+.schedule-action svg { width: 1rem; height: 1rem; }
+.schedule-action:hover,
+.schedule-action:focus-visible { border-color: rgba(0,87,64,.35); background: #edf7f3; color: #005740; box-shadow: 0 5px 12px rgba(33,53,47,.09); outline: none; transform: translateY(-1px); }
+.schedule-action-status { color: #a36c09; }
+.schedule-action-status:hover,
+.schedule-action-status:focus-visible { border-color: #ead6a8; background: #fff9e8; color: #8a5a05; }
+.schedule-action-edit { color: #005740; }
+.schedule-action-danger { color: #c2413a; }
+.schedule-action-danger:hover,
+.schedule-action-danger:focus-visible { border-color: #efc7c3; background: #fff2f0; color: #b4231a; }
+.schedule-action.is-disabled { cursor: not-allowed; border-color: #e7ece9; background: #f7f9f8; color: #b5c0bb; box-shadow: none; }
 
 /* Hover effects for buttons */
 button.transition-transform:hover:not(:disabled) {

@@ -3,66 +3,121 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    scrollbar-gutter: stable;
+  }
+
   :root {
     --color-primary: #005740;
     --color-primary-hover: #006b4f;
-    --color-primary-deep: #003f30;
-    --surface-border: #dbe7e1;
-    --surface-muted: #f6faf8;
+    --color-primary-deep: #003d2d;
+    --color-accent: #d99b22;
+    --surface-canvas: #f5f2ec;
+    --surface-border: #dfe4dc;
+    --surface-muted: #f8f7f3;
+    --text-ink: #21352f;
+    --text-muted: #6d7a75;
   }
 
   body {
-    @apply bg-slate-50 text-slate-900 antialiased;
+    margin: 0;
+    background: var(--surface-canvas);
+    color: var(--text-ink);
+    font-family: Arial, Helvetica, sans-serif;
+    @apply antialiased;
   }
 }
 
 @layer components {
   .app-shell {
-    @apply min-h-screen bg-slate-50 font-sans text-slate-950;
+    min-height: 100vh;
+    background: var(--surface-canvas);
+    color: var(--text-ink);
+    font-family: Arial, Helvetica, sans-serif;
   }
 
   .app-frame {
-    @apply relative mt-[5.5rem] flex min-h-[calc(100vh-5.5rem)] overflow-hidden lg:mt-0 lg:min-h-screen;
+    @apply relative mt-[4.5rem] flex min-h-[calc(100vh-4.5rem)] lg:mt-0 lg:min-h-screen;
   }
 
   .app-main {
-    @apply min-w-0 flex-1 overflow-y-auto px-4 py-5 transition-all duration-300 sm:px-5 lg:px-6 lg:pt-[6.5rem];
+    view-transition-name: admin-content;
+    @apply min-w-0 flex-1 overflow-y-auto px-4 pb-7 pt-6 transition-all duration-300 sm:px-6 lg:px-9 lg:pt-[6.4rem];
+    background:
+      radial-gradient(circle at 96% 4%, rgba(0, 87, 64, 0.045), transparent 23rem),
+      var(--surface-canvas);
   }
 
   .app-page-header {
-    @apply mb-4 flex flex-col gap-2 rounded-2xl border border-primary-900/10 bg-white px-5 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between;
+    @apply mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between;
+    min-height: 4.25rem;
   }
 
   .app-page-title {
-    @apply text-2xl font-bold leading-tight text-slate-950;
+    color: var(--color-primary-deep);
+    @apply text-3xl font-extrabold leading-tight tracking-tight;
   }
 
   .app-breadcrumb {
-    @apply text-xs font-semibold uppercase tracking-[0.12em] text-slate-500;
+    color: var(--color-accent);
+    @apply text-[10px] font-bold uppercase tracking-[0.2em];
   }
 
   .app-content-panel {
-    @apply rounded-2xl border border-primary-900/10 bg-white p-4 shadow-[0_18px_42px_rgba(15,23,42,0.06)] sm:p-5;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,.9);
+    border-radius: 1.15rem;
+    background: linear-gradient(145deg,rgba(255,255,255,.97),rgba(255,255,255,.79));
+    box-shadow: 0 18px 46px rgba(33,53,47,.075), inset 0 1px #fff;
+    @apply p-4 sm:p-6;
   }
 
   .app-card {
-    @apply rounded-2xl border border-primary-900/10 bg-white shadow-[0_16px_36px_rgba(15,23,42,0.06)];
+    border: 1px solid rgba(255,255,255,.92);
+    border-radius: 1.05rem;
+    background: linear-gradient(145deg,#fff,rgba(255,255,255,.82));
+    box-shadow: 0 16px 36px rgba(33,53,47,.07), inset 0 1px #fff;
+  }
+
+  .admin-metric-card {
+    position: relative;
+    min-height: 7.7rem;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,.94);
+    border-top: 3px solid var(--color-primary);
+    border-radius: 1rem;
+    padding: 1rem 1.15rem;
+    background: linear-gradient(138deg,#fff 0%,rgba(255,255,255,.9) 62%,rgba(238,247,242,.82) 100%);
+    box-shadow: 0 16px 36px rgba(33,53,47,.07), inset 0 1px #fff;
+  }
+
+  .admin-metric-card::after {
+    position: absolute;
+    right: -2.5rem;
+    bottom: -3.4rem;
+    width: 8rem;
+    height: 8rem;
+    border: 1rem solid rgba(0,87,64,.055);
+    border-radius: 999px;
+    content: '';
+    pointer-events: none;
   }
 
   .app-button-primary {
-    @apply inline-flex items-center justify-center rounded-xl bg-primary-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-60;
+    @apply inline-flex items-center justify-center rounded-lg bg-primary-700 px-4 py-2 text-[13px] font-bold text-white transition hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-60;
   }
 
   .app-button-secondary {
-    @apply inline-flex items-center justify-center rounded-xl border border-primary-700 bg-white px-4 py-2 text-sm font-semibold text-primary-700 transition hover:bg-primary-50 disabled:cursor-not-allowed disabled:opacity-60;
+    @apply inline-flex items-center justify-center rounded-lg border border-primary-700 bg-white px-4 py-2 text-[13px] font-bold text-primary-700 transition hover:bg-primary-50 disabled:cursor-not-allowed disabled:opacity-60;
   }
 
   .app-field {
-    @apply rounded-xl border-slate-300 text-sm shadow-sm focus:border-primary-700 focus:ring-primary-700;
+    @apply rounded-lg border-slate-300 text-[13px] shadow-sm focus:border-primary-700 focus:ring-primary-700;
   }
 
   .app-table-wrap {
-    @apply overflow-hidden rounded-2xl border border-primary-900/10 bg-white shadow-sm;
+    @apply overflow-hidden rounded-xl border border-primary-900/10 bg-white shadow-sm;
   }
 
   .app-table {
@@ -70,11 +125,12 @@
   }
 
   .app-table thead {
-    @apply bg-primary-700 text-white;
+    background: var(--surface-muted);
+    color: var(--text-muted);
   }
 
   .app-table th {
-    @apply px-4 py-3 text-left text-xs font-bold uppercase tracking-[0.08em];
+    @apply px-4 py-3 text-left text-[11px] font-bold uppercase tracking-[0.09em];
   }
 
   .app-table td {
@@ -82,7 +138,7 @@
   }
 
   .modern-table-card {
-    @apply min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.05)];
+    @apply min-w-0 overflow-hidden rounded-xl border border-primary-900/10 bg-white shadow-[0_14px_34px_rgba(33,53,47,0.06)];
   }
 
   .modern-table-header {
@@ -90,11 +146,13 @@
   }
 
   .modern-table-title {
-    @apply text-base font-bold text-slate-950;
+    color: var(--text-ink);
+    @apply text-base font-extrabold;
   }
 
   .modern-table-subtitle {
-    @apply mt-1 text-sm font-medium text-slate-500;
+    color: var(--text-muted);
+    @apply mt-1 text-[13px] font-medium;
   }
 
   .modern-table-controls {
@@ -106,7 +164,7 @@
   }
 
   .modern-table-footer {
-    @apply flex flex-col items-center justify-between gap-3 border-t border-slate-200 bg-slate-50 px-5 py-4 text-sm text-slate-600 sm:flex-row;
+    @apply flex flex-col items-center justify-between gap-3 border-t border-slate-200 bg-[#f8f7f3] px-5 py-4 text-sm text-slate-600 sm:flex-row;
   }
 
   .modern-page-button {
@@ -117,6 +175,21 @@
     @apply border-primary-700 bg-primary-700 text-white hover:bg-primary-700;
   }
 }
+
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(admin-sidebar),
+  ::view-transition-new(admin-sidebar),
+  ::view-transition-old(admin-topbar),
+  ::view-transition-new(admin-topbar) {
+    animation: none;
+  }
+
+  ::view-transition-old(admin-content) { animation: admin-content-out 80ms ease-out both; }
+  ::view-transition-new(admin-content) { animation: admin-content-in 140ms ease-out both; }
+}
+
+@keyframes admin-content-out { to { opacity: .96; } }
+@keyframes admin-content-in { from { opacity: .96; } to { opacity: 1; } }
 
 @layer utilities {
   .app-content-panel :where(table) {
@@ -129,8 +202,8 @@
   }
 
   .app-content-panel :where(thead) {
-    background: var(--color-primary) !important;
-    color: white !important;
+    background: var(--surface-muted) !important;
+    color: var(--text-muted) !important;
   }
 
   .app-content-panel :where(th) {
@@ -140,7 +213,7 @@
     padding: 0.95rem 1rem;
     text-transform: uppercase;
     border-bottom: 0;
-    color: white;
+    color: var(--text-muted);
   }
 
   .app-content-panel :where(td) {
@@ -155,7 +228,7 @@
   }
 
   .app-content-panel :where(tbody tr:nth-child(even)) {
-    background-color: #f8fafc;
+    background-color: #fbfaf7;
   }
 
   .app-content-panel :where(tbody tr:hover) {

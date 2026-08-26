@@ -95,10 +95,7 @@ const iconFor = (label, index) => {
   width: fit-content;
   max-width: 100%;
   overflow-x: auto;
-  border: 1px solid #dbe3ea;
-  border-radius: 0.75rem;
-  background: #f1f5f9;
-  padding: 0.55rem 0.75rem;
+  padding: 0;
 }
 
 .breadcrumbs ol {
@@ -112,15 +109,17 @@ const iconFor = (label, index) => {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  color: #64748b;
-  font-size: 0.78rem;
-  font-weight: 700;
+  color: #a36c09;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: .12em;
   line-height: 1;
+  text-transform: uppercase;
 }
 
 .breadcrumbs li.current {
-  color: #65a30d;
-  font-style: italic;
+  color: #005740;
+  font-style: normal;
 }
 
 .crumb-icon {
@@ -138,6 +137,6 @@ const iconFor = (label, index) => {
 }
 
 .crumb-separator {
-  color: #94a3b8;
+  color: #c5aa73;
 }
 </style>

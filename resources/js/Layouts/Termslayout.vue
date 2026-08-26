@@ -3,7 +3,7 @@
     <Navbar @toggleSidebar="toggleSidebar" />
 
     <div class="app-frame">
-      <Sidebar :sidebarOpen="sidebarOpen" class="fixed left-0 top-[5.5rem] z-20 h-[calc(100vh-5.5rem)] w-64 lg:relative lg:top-0 lg:h-auto lg:min-h-full" />
+      <Sidebar :sidebarOpen="sidebarOpen" class="fixed left-0 top-[4.5rem] z-20 h-[calc(100vh-4.5rem)] lg:fixed lg:top-0 lg:h-screen" />
       <button
         v-if="sidebarOpen"
         type="button"
@@ -12,9 +12,9 @@
         @click="sidebarOpen = false"
       ></button>
 
-      <main class="app-main">
+      <main class="app-main transition-all duration-300" :class="sidebarOpen ? 'lg:ml-[250px]' : 'lg:ml-0'">
         <div class="app-page-header">
-          <Breadcrumbs trail="UPCEBU > TERMS" />
+          <div><Breadcrumbs trail="UPCEBU > TERMS" /><h1 class="app-page-title mt-2">Terms</h1></div>
         </div>
 
         <div class="app-content-panel">

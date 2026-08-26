@@ -68,7 +68,7 @@ const hasRows = (items) => items.length > 0;
   <AppLayout>
     <div class="space-y-5">
       <header class="app-page-header">
-        <Breadcrumbs trail="UPCEBU > ANALYTICS" />
+        <div><Breadcrumbs trail="UPCEBU > ANALYTICS" /><h1 class="app-page-title mt-2">Analytics</h1></div>
         <div class="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-800">
           Updated {{ updatedAt }}
         </div>
@@ -78,7 +78,7 @@ const hasRows = (items) => items.length > 0;
         <article
           v-for="item in summary"
           :key="item.label"
-          class="rounded-2xl border border-slate-200 bg-gradient-to-br p-5 shadow-sm ring-1"
+          class="admin-metric-card"
           :class="accentClasses[item.accent] ?? accentClasses.slate"
         >
           <p class="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">{{ item.label }}</p>
