@@ -1,7 +1,7 @@
 <?php
 
-use App\Http\Controllers\BuildingController;
 use App\Http\Controllers\AnalyticsController;
+use App\Http\Controllers\BuildingController;
 use App\Http\Controllers\CollegeController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DepartmentController;
@@ -15,8 +15,9 @@ use App\Http\Controllers\SamlConfigurationController;
 use App\Http\Controllers\SamlMetadataController;
 use App\Http\Controllers\SamlSpController;
 use App\Http\Controllers\ScheduleController;
+use App\Http\Controllers\ScheduleImportController;
 use App\Http\Controllers\ScheduleNotificationController;
-use App\Http\Controllers\TermController;
+use App\Http\Controllers\ScheduleReportController;
 use App\Http\Controllers\UserAccountController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -108,6 +109,12 @@ Route::middleware(['auth.session'])->group(function () {
     });
     // Schedule Management
     Route::get('/Schedule', [ScheduleController::class, 'index'])->name('schedules.index');
+    Route::get('/Reports/Schedule', [ScheduleReportController::class, 'index'])->name('reports.schedule');
+    Route::get('/Schedule/Import', [ScheduleImportController::class, 'index'])->name('schedules.import.index');
+    Route::post('/Schedule/Import/Preview', [ScheduleImportController::class, 'preview'])->name('schedules.import.preview');
+    Route::post('/Schedule/Import', [ScheduleImportController::class, 'store'])->name('schedules.import.store');
+    Route::get('/Schedule/Import/Template.csv', [ScheduleImportController::class, 'csvTemplate'])->name('schedules.import.template.csv');
+    Route::get('/Schedule/Import/Template.xlsx', [ScheduleImportController::class, 'excelTemplate'])->name('schedules.import.template.excel');
     Route::get('/Schedule/room-equipment', [ScheduleController::class, 'roomEquipment'])->name('schedules.room-equipment');
     Route::post('/Schedule', [ScheduleController::class, 'store'])->name('schedules.store');
     Route::put('/Schedule/{schedule}', [ScheduleController::class, 'update'])->name('schedules.update');

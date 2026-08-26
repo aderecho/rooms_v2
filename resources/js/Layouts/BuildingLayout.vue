@@ -33,15 +33,15 @@ const setTab = (tab) => {
     <ManagementLayout title="Buildings & Rooms" breadcrumb="UPCEBU > BUILDINGS & ROOMS">
         <div class="space-y-5">
             <section class="grid gap-4 md:grid-cols-3">
-                <div class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                <div class="admin-metric-card">
                     <div class="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Buildings</div>
                     <div class="mt-2 text-3xl font-bold text-slate-950">{{ stats.buildings ?? 0 }}</div>
                 </div>
-                <div class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                <div class="admin-metric-card">
                     <div class="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Rooms</div>
                     <div class="mt-2 text-3xl font-bold text-[#005740]">{{ stats.rooms ?? 0 }}</div>
                 </div>
-                <div class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                <div class="admin-metric-card">
                     <div class="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Current Result</div>
                     <div class="mt-2 text-3xl font-bold text-slate-950">
                         {{ activeTab === 'rooms' ? (stats.filtered_rooms ?? 0) : ($page.props.buildings?.total ?? 0) }}

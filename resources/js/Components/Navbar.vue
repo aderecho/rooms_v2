@@ -1,10 +1,10 @@
 <template>
-  <header class="fixed left-0 right-0 top-0 z-50 bg-slate-50 px-3 py-3 text-white lg:left-[245px]">
-    <div class="flex h-16 items-center justify-between gap-4 rounded-[1.25rem] bg-[#005740] px-3 shadow-[0_12px_34px_rgba(0,87,64,0.2)] ring-1 ring-white/10 sm:px-4">
+  <header class="admin-topbar fixed left-0 right-0 top-0 z-50 text-white lg:left-[250px]">
+    <div class="flex h-[72px] items-center justify-between gap-4 px-4 sm:px-7">
       <div class="flex min-w-0 flex-1 items-center gap-3">
         <button
           @click="emitToggle"
-          class="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white/10 text-white transition hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-white/40 lg:hidden"
+          class="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-white/20 bg-white/10 text-white transition hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-white/40 lg:hidden"
           aria-label="Toggle sidebar"
         >
           <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-current" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -17,7 +17,7 @@
             v-model="searchQuery"
             type="search"
             placeholder="Search rooms, college, location..."
-            class="h-11 w-full rounded-xl border border-white/20 bg-white/95 py-0 pl-12 pr-14 text-sm text-slate-700 outline-none transition placeholder:text-slate-500 focus:bg-white focus:ring-4 focus:ring-white/20"
+            class="h-11 w-full rounded-full border border-white/25 bg-white/95 py-0 pl-12 pr-14 text-sm text-slate-700 outline-none transition placeholder:text-slate-500 focus:bg-white focus:ring-4 focus:ring-white/20"
           />
           <svg class="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#005740]" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="m21 21-4.3-4.3M11 18a7 7 0 1 1 0-14 7 7 0 0 1 0 14Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
@@ -33,13 +33,13 @@
           </svg>
         </button>
         <AppointmentNotificationBell />
-        <div class="flex items-center gap-3 rounded-xl bg-white/10 py-1.5 pl-1.5 pr-3">
-          <div class="grid h-9 w-9 place-items-center rounded-lg bg-white text-sm font-bold text-[#005740]">
+        <div class="topbar-profile flex items-center gap-3 rounded-full py-1.5 pl-4 pr-1.5">
+          <div class="grid h-10 w-10 place-items-center rounded-full border-2 border-white/75 bg-white text-sm font-bold text-[#005740]">
             {{ userInitial }}
           </div>
           <div class="hidden leading-tight md:block">
             <p class="text-sm font-semibold text-white">{{ displayName }}</p>
-            <p class="text-[11px] text-white/65">{{ displayEmail }}</p>
+            <p class="max-w-[190px] truncate text-[10px] font-semibold uppercase tracking-[0.05em] text-white/65">{{ displayEmail }}</p>
           </div>
         </div>
       </div>
@@ -82,24 +82,28 @@ const submitSearch = () => {
   router.visit(`/MainDashboard?search=${encodeURIComponent(query)}`, {
     preserveState: true,
     preserveScroll: false,
+    viewTransition: true,
   });
 };
 </script>
 
 <style scoped>
+.admin-topbar{view-transition-name:admin-topbar;border-bottom:1px solid rgba(255,255,255,.13);background:linear-gradient(100deg,rgba(0,61,45,.99),rgba(0,98,72,.97));box-shadow:0 10px 30px rgba(0,61,45,.16);backdrop-filter:blur(18px)}
+.topbar-profile{border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.09);box-shadow:inset 0 1px rgba(255,255,255,.1)}
 .navbar-icon-button {
   display: grid;
-  height: 2.75rem;
-  width: 2.75rem;
+  height: 2.5rem;
+  width: 2.5rem;
   place-items: center;
-  border-radius: 0.9rem;
-  background: rgba(255, 255, 255, 0.94);
-  color: #005740;
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: 0.65rem;
+  background: rgba(255,255,255,.1);
+  color: #ffffff;
   transition: transform 0.2s ease, background-color 0.2s ease;
 }
 
 .navbar-icon-button:hover {
-  background: #ffffff;
+  background: rgba(255,255,255,.18);
   transform: translateY(-1px);
 }
 

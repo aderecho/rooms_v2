@@ -19,6 +19,8 @@ const deletingId = ref(null);
 const message = ref('');
 const error = ref('');
 const editingId = ref(null);
+const metadataFileInput = ref(null);
+const metadataFileName = ref('');
 
 const emptyForm = () => ({
   name: '',
@@ -47,6 +49,7 @@ const activeConfig = computed(() => configurations.value.find((item) => item.is_
 const resetForm = (clearMessages = true) => {
   Object.assign(form, emptyForm());
   editingId.value = null;
+  metadataFileName.value = '';
   if (clearMessages) {
     error.value = '';
     message.value = '';
@@ -62,6 +65,7 @@ const editConfiguration = (configuration) => {
       : [...props.defaultAttributes],
   });
   editingId.value = configuration.id;
+  metadataFileName.value = '';
   error.value = '';
   message.value = '';
 };
@@ -73,6 +77,34 @@ const toggleAttribute = (attribute) => {
   }
 
   form.attribute_release = [...form.attribute_release, attribute];
+};
+
+const openMetadataFilePicker = () => {
+  metadataFileInput.value?.click();
+};
+
+const uploadMetadata = async (event) => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+
+  error.value = '';
+  message.value = '';
+
+  if (!file.name.toLowerCase().endsWith('.xml')) {
+    error.value = 'Please select a valid XML metadata file.';
+    event.target.value = '';
+    return;
+  }
+
+  try {
+    form.metadata_xml = await file.text();
+    metadataFileName.value = file.name;
+    message.value = 'Metadata XML loaded. Review the configuration, then save it.';
+  } catch {
+    error.value = 'Unable to read the selected metadata file.';
+  } finally {
+    event.target.value = '';
+  }
 };
 
 const saveConfiguration = async () => {
@@ -145,7 +177,7 @@ const copyValue = async (value) => {
   <AppLayout>
     <div class="space-y-5">
       <div class="app-page-header">
-        <Breadcrumbs trail="UPCEBU > SAML" />
+        <div><Breadcrumbs trail="UPCEBU > SAML" /><h1 class="app-page-title mt-2">SAML Integration</h1></div>
       </div>
 
       <div v-if="message" class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
@@ -156,19 +188,19 @@ const copyValue = async (value) => {
       </div>
 
       <section class="grid gap-4 lg:grid-cols-4">
-        <div class="rounded-lg border border-slate-200 bg-white p-4">
+        <div class="admin-metric-card">
           <div class="text-xs font-semibold uppercase tracking-wide text-slate-500">Total</div>
           <div class="mt-2 text-2xl font-bold text-slate-950">{{ stats.total || configurations.length }}</div>
         </div>
-        <div class="rounded-lg border border-slate-200 bg-white p-4">
+        <div class="admin-metric-card">
           <div class="text-xs font-semibold uppercase tracking-wide text-slate-500">Active</div>
           <div class="mt-2 text-2xl font-bold text-[#005740]">{{ activeConfig ? 1 : 0 }}</div>
         </div>
-        <div class="rounded-lg border border-slate-200 bg-white p-4">
+        <div class="admin-metric-card">
           <div class="text-xs font-semibold uppercase tracking-wide text-slate-500">IdP Configs</div>
           <div class="mt-2 text-2xl font-bold text-slate-950">{{ configurations.filter((item) => item.mode === 'idp').length }}</div>
         </div>
-        <div class="rounded-lg border border-slate-200 bg-white p-4">
+        <div class="admin-metric-card">
           <div class="text-xs font-semibold uppercase tracking-wide text-slate-500">SP Configs</div>
           <div class="mt-2 text-2xl font-bold text-slate-950">{{ configurations.filter((item) => item.mode === 'sp').length }}</div>
         </div>
@@ -279,10 +311,23 @@ const copyValue = async (value) => {
                   <option value="rsa-sha512">RSA SHA-512</option>
                 </select>
               </label>
-              <label class="block lg:col-span-2">
-                <span class="text-sm font-semibold text-slate-700">Metadata XML</span>
+              <div class="block lg:col-span-2">
+                <span class="flex items-center justify-between gap-3 text-sm font-semibold text-slate-700">
+                  <span>Metadata XML</span>
+                  <button type="button" class="app-button-secondary px-3 py-1.5 text-xs" @click="openMetadataFilePicker">
+                    Upload XML
+                  </button>
+                </span>
+                <input
+                  ref="metadataFileInput"
+                  type="file"
+                  accept=".xml,text/xml,application/xml"
+                  class="sr-only"
+                  @change="uploadMetadata"
+                />
                 <textarea v-model="form.metadata_xml" class="app-field mt-1 min-h-32 w-full font-mono text-xs" placeholder="Paste IdP or SP metadata XML here"></textarea>
-              </label>
+                <span v-if="metadataFileName" class="mt-1 block text-xs font-medium text-[#005740]">Loaded: {{ metadataFileName }}</span>
+              </div>
               <label class="block lg:col-span-2">
                 <span class="text-sm font-semibold text-slate-700">X.509 Certificate</span>
                 <textarea v-model="form.x509_cert" class="app-field mt-1 min-h-28 w-full font-mono text-xs"></textarea>
@@ -371,8 +416,8 @@ const copyValue = async (value) => {
             </div>
           </div>
 
-          <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
-            ACS validates inbound SAML signatures, issuer, audience, recipient, timestamps, and replay protection before logging in matched Rooms users.
+          <div class="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+            ACS currently records and rejects inbound SAML responses until a maintained SAML toolkit is installed for XML signature and assertion validation.
           </div>
         </aside>
       </section>

@@ -7,7 +7,7 @@
         v-show="sidebarVisible"
         :sidebar-open="sidebarVisible"
         :user="$page.props.auth.user"
-        class="fixed left-0 top-[5.5rem] z-20 h-[calc(100vh-5.5rem)] w-64 lg:relative lg:top-0 lg:h-auto lg:min-h-full"
+        class="fixed left-0 top-[4.5rem] z-20 h-[calc(100vh-4.5rem)] lg:fixed lg:top-0 lg:h-screen"
       />
       <button
         v-if="sidebarVisible"
@@ -17,7 +17,7 @@
         @click="sidebarVisible = false"
       ></button>
 
-      <main class="app-main" :class="sidebarVisible ? 'lg:ml-0' : ''">
+      <main class="app-main transition-all duration-300" :class="sidebarVisible ? 'lg:ml-[250px]' : 'lg:ml-0'">
         <section class="app-content-panel">
           <slot />
         </section>

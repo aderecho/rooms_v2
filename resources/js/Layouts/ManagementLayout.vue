@@ -26,17 +26,12 @@ const toggleSidebar = () => {
     <div class="app-shell">
         <Navbar @toggleSidebar="toggleSidebar" />
 
-        <div
-            :class="[
-                'app-frame',
-                sidebarVisible ? 'lg:grid lg:grid-cols-[245px_minmax(0,1fr)]' : 'lg:grid lg:grid-cols-[minmax(0,1fr)]'
-            ]"
-        >
+        <div class="app-frame">
             <Sidebar
                 :sidebarOpen="sidebarVisible"
                 @toggleSidebar="toggleSidebar"
                 :class="[
-                    'lg:relative lg:translate-x-0 lg:h-full',
+                    'fixed left-0 top-[4.5rem] z-20 h-[calc(100vh-4.5rem)] lg:fixed lg:top-0 lg:h-screen lg:translate-x-0',
                     sidebarVisible ? 'lg:block' : 'lg:hidden'
                 ]"
             />
@@ -48,10 +43,12 @@ const toggleSidebar = () => {
                 @click="sidebarVisible = false"
             ></button>
 
-            <main class="app-main">
+            <main class="app-main transition-all duration-300" :class="sidebarVisible ? 'lg:ml-[250px]' : 'lg:ml-0'">
                 <header class="app-page-header">
-                    <Breadcrumbs v-if="breadcrumb" :trail="breadcrumb" />
-                    <h1 v-else class="app-page-title">{{ title }}</h1>
+                    <div>
+                        <Breadcrumbs v-if="breadcrumb" :trail="breadcrumb" />
+                        <h1 class="app-page-title mt-2">{{ title }}</h1>
+                    </div>
                 </header>
 
                 <section class="app-content-panel">

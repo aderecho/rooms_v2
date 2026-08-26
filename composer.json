@@ -16,6 +16,7 @@
         "laravel/socialite": "^5.28",
         "laravel/tinker": "^2.10.1",
         "onelogin/php-saml": "^4.3",
+        "phpoffice/phpspreadsheet": "^3.9",
         "spatie/laravel-permission": "^6.24",
         "tightenco/ziggy": "^2.6"
     },

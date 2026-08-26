@@ -445,8 +445,7 @@ onMounted(() => {
         <Navbar @toggle-sidebar="toggleSidebar" />
 
         <div class="app-frame">
-            <!-- <Sidebar v-show="sidebarVisible" class="fixed top-5 left-0 h-full z-20 w-64 lg:relative" /> -->
-             <Sidebar :sidebarOpen="sidebarVisible" class="fixed left-0 top-[5.5rem] z-20 h-[calc(100vh-5.5rem)] w-64 lg:relative lg:top-0 lg:h-auto lg:min-h-full"/>
+             <Sidebar :sidebarOpen="sidebarVisible" class="fixed left-0 top-[4.5rem] z-20 h-[calc(100vh-4.5rem)] lg:fixed lg:top-0 lg:h-screen"/>
              <button
                 v-if="sidebarVisible"
                 type="button"
@@ -455,7 +454,10 @@ onMounted(() => {
                 @click="sidebarVisible = false"
              ></button>
 
-            <main id="main" class="app-main">
+            <main id="main" class="app-main transition-all duration-300" :class="sidebarVisible ? 'lg:ml-[250px]' : 'lg:ml-0'">
+                <header class="app-page-header">
+                    <div><span class="app-breadcrumb">University of the Philippines Cebu</span><h1 class="app-page-title mt-2">User Accounts</h1></div>
+                </header>
                 <section class="app-content-panel p-0">
                     <UserAccountTable
                         :users="users"

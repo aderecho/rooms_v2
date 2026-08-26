@@ -194,7 +194,7 @@ watch(isMobile, () => {
 
             <main class="app-main pt-20">
                 <div class="app-page-header">
-                    <Breadcrumbs trail="UPCEBU > EQUIPMENT" />
+                    <div><Breadcrumbs trail="UPCEBU > EQUIPMENT" /><h1 class="app-page-title mt-2">Equipment Management</h1></div>
                 </div>
 
                 <div class="space-y-3 sm:space-y-4">

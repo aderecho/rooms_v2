@@ -1,372 +1,386 @@
 <?php
 
 namespace App\Services;
-use App\Models\Schedule;
+
 use App\Models\Room;
-use App\Models\ScheduleImportLog;
+use App\Models\Schedule;
+use Carbon\Carbon;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
+use RuntimeException;
 
 class ScheduleImportService
 {
-    public function import(array $data): array
+    public const MAX_ROWS = 500;
+
+    public const HEADERS = [
+        'room_id',
+        'room_name',
+        'event_title',
+        'event_type',
+        'date',
+        'start_time',
+        'end_time',
+        'course_code',
+        'course_name',
+        'section',
+        'faculty_name',
+        'number_of_participants',
+        'requester_name',
+        'description',
+        'agenda',
+        'organizer',
+        'equipment_needed',
+        'additional_requirements',
+        'cfic_id',
+    ];
+
+    public const REQUIRED_HEADERS = [
+        'room_id',
+        'room_name',
+        'event_title',
+        'event_type',
+        'date',
+        'start_time',
+        'end_time',
+    ];
+
+    public function __construct(
+        private readonly ScheduleDateParser $scheduleDateParser,
+    ) {}
+
+    public function analyze(UploadedFile $file): array
     {
-        DB::beginTransaction();
+        $records = $this->readRecords($file);
+        $rooms = Room::query()->get()->keyBy('id');
+        $roomsByName = Room::query()->get()->keyBy(fn (Room $room) => strtolower(trim($room->room_name)));
+        $rows = [];
+        $prepared = [];
+        $fileSlots = [];
 
-        try {
+        foreach ($records as $record) {
+            $result = $this->analyzeRow($record, $rooms, $roomsByName, $fileSlots);
+            $rows[] = $result['preview'];
 
-            $summary = [
-                'received' => count($data['schedules']),
-                'inserted' => 0,
-                'failed' => 0,
-            ];
+            if ($result['prepared']) {
+                $prepared[] = $result['prepared'];
 
-            $inserted = [];
-            $errors = [];
-            $processed = [];
-            $importLog = ScheduleImportLog::create([
-                'user_id' => auth()->id(),
-                'source' => 'JSON Import',
-                'total_records' => 0,
-                'inserted_records' => 0,
-                'failed_records' => 0,
-                'errors' => [],
-            ]);
-
-            foreach ($data['schedules'] as $schedule) {
-
-
-            /**
-             * Step 1: Check Duplicate Inside Import File
-             */
-            // $key = implode('|', [
-            //     $schedule['room_id'],
-            //     $schedule['event_type'],
-            //     $schedule['course_code'] ?? '',
-            //     $schedule['event_title'],
-            //     $schedule['section'] ?? '',
-            //     $schedule['faculty_id'] ?? '',
-            //     $schedule['date'],
-            //     $schedule['start_time'],
-            //     $schedule['end_time'],
-            // ]);
-
-            $key = sprintf(
-                '%s|%s|%s|%s|%s|%s|%s|%s|%s',
-                $schedule['room_id'],
-                $schedule['event_type'],
-                $schedule['course_code'] ?? '',
-                $schedule['event_title'],
-                $schedule['section'] ?? '',
-                $schedule['faculty_id'] ?? '',
-                $schedule['date'],
-                $schedule['start_time'],
-                $schedule['end_time']
-            );
-
-
-            if (in_array($key, $processed)) {
-
-                $summary['failed']++;
-
-                $errors[] = [
-                    'event_title' => $schedule['event_title'],
-                    'reason' => 'Duplicate schedule found inside import file.'
-                ];
-
-                continue;
-            }
-
-
-    $processed[] = $key;
-
-
-    /**
-     * Step 2: Save Schedule
-     */
-    // $result = $this->saveSchedule($schedule); //make way for rollback
-    $result = $this->saveSchedule($schedule, $importLog->id);
-
-
-    if ($result['success']) {
-
-                    $summary['inserted']++;
-
-                    $inserted[] = $result['schedule'];
-
-                } else {
-
-                    $summary['failed']++;
-
-                    $errors[] = $result['error'];
-
+                foreach ($result['prepared']['dates'] as $date) {
+                    $fileSlots[$result['prepared']['room']->id][$date][] = [
+                        'start_time' => $result['prepared']['start_time'],
+                        'end_time' => $result['prepared']['end_time'],
+                        'row_number' => $record['row_number'],
+                    ];
                 }
-
             }
-
-            $importLog->update([
-                'total_records' => $summary['received'],
-                'inserted_records' => $summary['inserted'],
-                'failed_records' => $summary['failed'],
-                'errors' => $errors,
-            ]);
-
-            DB::commit();
-
-            
-
-            return [
-
-                'success' => true,
-
-                'summary' => $summary,
-
-                'inserted' => $inserted,
-
-                'errors' => $errors
-
-            ];
-
-        } catch (\Throwable $e) {
-
-            DB::rollBack();
-
-            return [
-
-                'success' => false,
-
-                'message' => $e->getMessage()
-
-            ];
-
-        }
-    }
-
-    // private function saveSchedule(array $schedule): array --- deleted to add rollback ---
-    private function saveSchedule(array $schedule, int $importLogId): array
-    {
-         /**
-         * Step 0: Validate Time Range
-         */
-        if ($schedule['start_time'] >= $schedule['end_time']) {
-
-            return [
-                'success' => false,
-                'error' => [
-                    'event_title' => $schedule['event_title'],
-                    'reason' => 'Invalid time range. End time must be later than start time.',
-                ],
-            ];
-        }
-        /**
-         * Step 1: (Next)
-         * Check Duplicate Import
-         */
-        $duplicate = $this->checkDuplicateSchedule($schedule);
-
-        if ($duplicate) {
-
-            return [
-                'success' => false,
-                'error' => [
-                    'event_title' => $schedule['event_title'],
-                    'reason' => 'Duplicate schedule already exists.',
-                    'existing_schedule' => [
-                        'title' => $duplicate->event_title,
-                        'date' => $duplicate->date,
-                        'start_time' => $duplicate->start_time,
-                        'end_time' => $duplicate->end_time,
-                    ]
-                ],
-            ];
-
-        }
-        /**
-         * Step 2: Validate Room
-         */
-        if ($error = $this->validateRoom($schedule['room_id'])) {
-
-            return [
-                'success' => false,
-                'error' => [
-                    'event_title' => $schedule['event_title'],
-                    'reason' => $error['reason'],
-                ],
-            ];
         }
 
-        /**
-         * Step 3: Check Room Conflict
-         */
-        $conflict = $this->checkRoomConflict($schedule);
-
-        if ($conflict) {
-
-            return [
-                'success' => false,
-                'error' => [
-                    'event_title' => $schedule['event_title'],
-                    'reason' => 'Room is already occupied.',
-                    'conflicting_schedule' => [
-                        'title' => $conflict->event_title,
-                        'date' => $conflict->date,
-                        'start_time' => $conflict->start_time,
-                        'end_time' => $conflict->end_time,
-                    ]
-                ],
-            ];
-
-        }
-
-        /**
-         * Step 4: (Next)
-         * Check Faculty Conflict
-         */
-        $facultyConflict = $this->checkFacultyConflict($schedule);
-
-        if ($facultyConflict) {
-
-            return [
-                'success' => false,
-                'error' => [
-                    'event_title' => $schedule['event_title'],
-                    'reason' => 'Faculty is already assigned to another schedule.',
-                    'conflicting_schedule' => [
-                        'title' => $facultyConflict->event_title,
-                        'date' => $facultyConflict->date,
-                        'start_time' => $facultyConflict->start_time,
-                        'end_time' => $facultyConflict->end_time,
-                    ]
-                ],
-            ];
-
-        }
-        
-
-        /**
-         * Step 5:
-         * Save to Database
-         */
-        $schedule['import_log_id'] = $importLogId;
-        logger($schedule);
-
-        $createdSchedule = Schedule::create($schedule);
+        $invalidRows = collect($rows)->where('status', 'invalid')->count();
 
         return [
-            'success' => true,
-            'schedule' => $createdSchedule,
+            'summary' => [
+                'total_rows' => count($rows),
+                'valid_rows' => count($rows) - $invalidRows,
+                'invalid_rows' => $invalidRows,
+                'schedule_occurrences' => collect($prepared)->sum(fn (array $row) => count($row['dates'])),
+            ],
+            'rows' => $rows,
+            'prepared' => $prepared,
         ];
     }
 
-    private function checkRoomConflict(array $schedule): ?Schedule
+    public function create(array $preparedRows): Collection
     {
-         $query = Schedule::query();
+        $created = collect();
 
-        $query->where('room_id', $schedule['room_id']);
-        $query->where('date', $schedule['date']);
+        foreach ($preparedRows as $prepared) {
+            foreach ($prepared['dates'] as $date) {
+                $created->push(Schedule::create([
+                    ...$prepared['schedule'],
+                    'room_id' => $prepared['room']->id,
+                    'date' => $date,
+                    'start_time' => $prepared['start_time'],
+                    'end_time' => $prepared['end_time'],
+                    'day_of_week' => Carbon::parse($date)->englishDayOfWeek,
+                    'status' => 'pending',
+                    'is_recurring' => $prepared['is_recurring'],
+                    'recurrence_pattern' => $prepared['recurrence_pattern'],
+                ]));
+            }
+        }
 
-        $query->where(function ($query) use ($schedule) {
-
-            $query->where(function ($q) use ($schedule) {
-
-                $q->where('start_time', '<', $schedule['end_time']);
-                $q->where('end_time', '>', $schedule['start_time']);
-
-            });
-
-        });
-
-        return $query->first();
+        return $created;
     }
 
-    private function validateRoom(int $roomId): ?array
+    public function exampleRows(iterable $rooms): array
     {
-        // $room = Room::find($roomId); error
-        $room = Room::query()->find($roomId);
+        $rooms = collect($rooms)->values();
 
-        if (!$room) {
-            return [
-                'success' => false,
-                'reason' => 'Room does not exist.'
+        if ($rooms->isEmpty()) {
+            return [];
+        }
+
+        $firstRoomName = $rooms->first()->room_name;
+        $secondRoomName = ($rooms->get(1) ?? $rooms->first())->room_name;
+
+        return [
+            [
+                '', $firstRoomName, 'Faculty Meeting', 'meeting', '2026-08-27', '09:00', '10:00',
+                '', '', '', 'Juan Dela Cruz', '20', 'Office of the Dean', 'Monthly coordination meeting',
+                'Department updates', 'UP Cebu', 'projector|microphone', 'water', 'EXT-001',
+            ],
+            [
+                '', $secondRoomName, 'Recurring Class', 'class',
+                'T-TH from June to May 10:am-11:am 2026-2027', '', '', 'CMSC 101',
+                'Introduction to Computing', 'A', 'Maria Santos', '35', 'External Scheduling System',
+                '', '', 'College of Science', 'projector|whiteboard', '', 'EXT-002',
+            ],
+        ];
+    }
+
+    private function readRecords(UploadedFile $file): array
+    {
+        $extension = strtolower($file->getClientOriginalExtension());
+        $readerType = match ($extension) {
+            'xlsx' => 'Xlsx',
+            'xls' => 'Xls',
+            'csv' => 'Csv',
+            default => throw new RuntimeException('Unsupported file type. Upload a CSV, XLSX, or XLS file.'),
+        };
+
+        $reader = IOFactory::createReader($readerType);
+        $reader->setReadDataOnly(true);
+        $spreadsheet = $reader->load($file->getRealPath());
+        $sheet = $spreadsheet->getSheet(0);
+        $highestRow = $sheet->getHighestDataRow();
+        $highestColumn = $sheet->getHighestDataColumn();
+        $rawHeaders = $sheet->rangeToArray("A1:{$highestColumn}1", null, true, true, false)[0] ?? [];
+        $headers = array_map(fn ($header) => $this->normalizeHeader((string) $header), $rawHeaders);
+
+        $missingHeaders = array_values(array_diff(self::REQUIRED_HEADERS, $headers));
+        if ($missingHeaders !== []) {
+            throw new RuntimeException('Missing required columns: '.implode(', ', $missingHeaders).'.');
+        }
+
+        if (($highestRow - 1) > self::MAX_ROWS) {
+            throw new RuntimeException('The file exceeds the maximum of '.self::MAX_ROWS.' schedule rows.');
+        }
+
+        $records = [];
+
+        for ($rowNumber = 2; $rowNumber <= $highestRow; $rowNumber++) {
+            $values = [];
+
+            foreach ($headers as $columnIndex => $header) {
+                if ($header === '') {
+                    continue;
+                }
+
+                $cell = $sheet->getCell([$columnIndex + 1, $rowNumber]);
+                $values[$header] = $this->normalizeCellValue($sheet, $cell->getValue(), $columnIndex + 1, $rowNumber, $header);
+            }
+
+            if (collect($values)->filter(fn ($value) => $value !== null && $value !== '')->isEmpty()) {
+                continue;
+            }
+
+            $records[] = [
+                'row_number' => $rowNumber,
+                'data' => $values,
             ];
         }
 
-        return null;
+        if ($records === []) {
+            throw new RuntimeException('The spreadsheet does not contain any schedule rows.');
+        }
+
+        $spreadsheet->disconnectWorksheets();
+
+        return $records;
     }
 
-    private function checkFacultyConflict(array $schedule)
+    private function analyzeRow(array $record, Collection $rooms, Collection $roomsByName, array $fileSlots): array
     {
-        // return Schedule::where('faculty_id', $schedule['faculty_id'])
-        //     ->whereDate('date', $schedule['date'])
-        //     ->where(function ($query) use ($schedule) {
+        $data = $record['data'];
+        $errors = [];
 
-        //         $query->where('start_time', '<', $schedule['end_time'])
-        //             ->where('end_time', '>', $schedule['start_time']);
+        $validator = Validator::make($data, [
+            'room_id' => ['nullable', 'integer'],
+            'room_name' => ['nullable', 'string'],
+            'event_title' => ['required', 'string', 'max:255'],
+            'event_type' => ['nullable', 'string', 'in:class,meeting,event,other'],
+            'date' => ['required', 'string'],
+            'start_time' => ['nullable', 'string'],
+            'end_time' => ['nullable', 'string'],
+            'number_of_participants' => ['nullable', 'integer', 'min:1'],
+        ]);
 
-        //     })
-        //     ->first();
-        // Skip faculty conflict checking if no faculty is assigned
+        if ($validator->fails()) {
+            $errors = $validator->errors()->all();
+        }
 
-        // accepts the faculty even if null
-        if (empty($schedule['faculty_id'])) {
+        $hasRoomId = filled($data['room_id'] ?? null);
+        $hasRoomName = filled($data['room_name'] ?? null);
+        if ($hasRoomId === $hasRoomName) {
+            $errors[] = 'Provide exactly one of room_id or room_name.';
+        }
+
+        $room = null;
+        if ($hasRoomId) {
+            $room = $rooms->get((int) $data['room_id']);
+        } elseif ($hasRoomName) {
+            $room = $roomsByName->get(strtolower(trim((string) $data['room_name'])));
+        }
+
+        if (($hasRoomId || $hasRoomName) && ! $room) {
+            $roomReference = $hasRoomName
+                ? '"'.trim((string) $data['room_name']).'"'
+                : 'ID '.(string) $data['room_id'];
+
+            $errors[] = "Room {$roomReference} was not found. Select a current room or download a fresh template.";
+        }
+
+        $parsedDate = null;
+        if (($data['date'] ?? '') !== '') {
+            try {
+                $parsedDate = $this->scheduleDateParser->parse(
+                    (string) $data['date'],
+                    filled($data['start_time'] ?? null) ? (string) $data['start_time'] : null,
+                    filled($data['end_time'] ?? null) ? (string) $data['end_time'] : null,
+                );
+            } catch (\InvalidArgumentException $exception) {
+                $errors[] = $exception->getMessage();
+            }
+        }
+
+        if ($room && $parsedDate) {
+            $conflict = Schedule::query()
+                ->where('room_id', $room->id)
+                ->whereIn(DB::raw('DATE(date)'), $parsedDate['dates'])
+                ->whereNotIn('status', ['cancelled', 'completed', 'rejected'])
+                ->where('start_time', '<', $parsedDate['end_time'])
+                ->where('end_time', '>', $parsedDate['start_time'])
+                ->orderBy('date')
+                ->orderBy('start_time')
+                ->first();
+
+            if ($conflict) {
+                $errors[] = sprintf(
+                    'Conflicts with "%s" on %s from %s to %s.',
+                    $conflict->event_title,
+                    $conflict->date->format('Y-m-d'),
+                    $conflict->start_time->format('H:i'),
+                    $conflict->end_time->format('H:i'),
+                );
+            }
+
+            foreach ($parsedDate['dates'] as $date) {
+                foreach ($fileSlots[$room->id][$date] ?? [] as $slot) {
+                    if ($parsedDate['start_time'] < $slot['end_time'] && $parsedDate['end_time'] > $slot['start_time']) {
+                        $errors[] = "Overlaps row {$slot['row_number']} in this file on {$date}.";
+                        break 2;
+                    }
+                }
+            }
+        }
+
+        $errors = array_values(array_unique($errors));
+        $prepared = null;
+
+        if ($errors === [] && $room && $parsedDate) {
+            $schedule = collect($data)
+                ->only([
+                    'event_title', 'event_type', 'course_code', 'course_name', 'section', 'faculty_name',
+                    'number_of_participants', 'requester_name', 'description', 'agenda', 'organizer', 'cfic_id',
+                ])
+                ->map(fn ($value) => $value === '' ? null : $value)
+                ->all();
+            $schedule['event_type'] = $schedule['event_type'] ?: 'other';
+            $schedule['equipment_needed'] = $this->parseList($data['equipment_needed'] ?? null);
+            $schedule['additional_requirements'] = $this->parseList($data['additional_requirements'] ?? null);
+
+            $prepared = [
+                'room' => $room,
+                'schedule' => $schedule,
+                'dates' => $parsedDate['dates'],
+                'start_time' => $parsedDate['start_time'],
+                'end_time' => $parsedDate['end_time'],
+                'is_recurring' => $parsedDate['is_recurring'],
+                'recurrence_pattern' => $parsedDate['recurrence_pattern'],
+            ];
+        }
+
+        return [
+            'preview' => [
+                'row_number' => $record['row_number'],
+                'room' => $room?->room_name ?: ($data['room_name'] ?? $data['room_id'] ?? 'Unknown'),
+                'event_title' => $data['event_title'] ?? '',
+                'date' => $data['date'] ?? '',
+                'start_time' => $parsedDate['start_time'] ?? ($data['start_time'] ?? ''),
+                'end_time' => $parsedDate['end_time'] ?? ($data['end_time'] ?? ''),
+                'occurrences' => $parsedDate ? count($parsedDate['dates']) : 0,
+                'is_recurring' => $parsedDate['is_recurring'] ?? false,
+                'days' => ($parsedDate['is_recurring'] ?? false)
+                    ? collect($parsedDate['recurrence_pattern']['days'])
+                        ->map(fn (int $day) => [
+                            Carbon::SUNDAY => 'Sunday',
+                            Carbon::MONDAY => 'Monday',
+                            Carbon::TUESDAY => 'Tuesday',
+                            Carbon::WEDNESDAY => 'Wednesday',
+                            Carbon::THURSDAY => 'Thursday',
+                            Carbon::FRIDAY => 'Friday',
+                            Carbon::SATURDAY => 'Saturday',
+                        ][$day])
+                        ->values()
+                        ->all()
+                    : [],
+                'range_start' => $parsedDate['recurrence_pattern']['range_start'] ?? null,
+                'range_end' => $parsedDate['recurrence_pattern']['range_end'] ?? null,
+                'status' => $errors === [] ? 'valid' : 'invalid',
+                'errors' => $errors,
+            ],
+            'prepared' => $prepared,
+        ];
+    }
+
+    private function normalizeHeader(string $header): string
+    {
+        $header = preg_replace('/^\xEF\xBB\xBF/', '', trim($header));
+
+        return strtolower((string) preg_replace('/[^a-zA-Z0-9]+/', '_', $header));
+    }
+
+    private function normalizeCellValue(Worksheet $sheet, mixed $value, int $column, int $row, string $header): mixed
+    {
+        if ($value === null) {
             return null;
         }
 
-        return Schedule::where('faculty_id', $schedule['faculty_id'])
-            ->whereDate('date', $schedule['date'])
-            ->where('start_time', '<', $schedule['end_time'])
-            ->where('end_time', '>', $schedule['start_time'])
-            ->first();
-    }
+        $cell = $sheet->getCell([$column, $row]);
 
-    private function checkDuplicateSchedule(array $schedule)
-    {
-        return Schedule::where('room_id', $schedule['room_id'])
-            ->where('event_title', $schedule['event_title'])
-            ->whereDate('date', $schedule['date'])
-            ->where('start_time', $schedule['start_time'])
-            ->where('end_time', $schedule['end_time'])
-            ->first();
-    }
+        if (is_numeric($value) && in_array($header, ['date', 'start_time', 'end_time'], true) && ExcelDate::isDateTime($cell)) {
+            $date = ExcelDate::excelToDateTimeObject((float) $value);
 
-    public function rollbackImport(int $importLogId): array
-    {
-        DB::beginTransaction();
-
-        try {
-
-            $log = ScheduleImportLog::find($importLogId);
-
-            if (!$log) {
-                return [
-                    'success' => false,
-                    'message' => 'Import log not found.'
-                ];
-            }
-
-            $deleted = Schedule::where('import_log_id', $importLogId)->delete();
-
-            $log->delete();
-
-            DB::commit();
-
-            return [
-                'success' => true,
-                'deleted_records' => $deleted,
-                'message' => 'Import rolled back successfully.'
-            ];
-
-        } catch (\Throwable $e) {
-
-            DB::rollBack();
-
-            return [
-                'success' => false,
-                'message' => $e->getMessage()
-            ];
-
+            return $header === 'date' ? $date->format('Y-m-d') : $date->format('H:i');
         }
+
+        return is_string($value) ? trim($value) : $value;
     }
 
+    private function parseList(mixed $value): ?array
+    {
+        if (! filled($value)) {
+            return null;
+        }
 
+        $items = preg_split('/[|,;]+/', (string) $value) ?: [];
+        $items = array_values(array_filter(array_map('trim', $items)));
 
+        return $items ?: null;
+    }
 }

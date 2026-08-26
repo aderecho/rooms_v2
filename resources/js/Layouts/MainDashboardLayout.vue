@@ -3,6 +3,8 @@ import { computed, onMounted, ref } from 'vue';
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import IconButton from '@/Components/IconButton.vue';
 import MessageFunction from '@/Components/MessageFunction.vue';
+import Navbar from '@/Components/Navbar.vue';
+import Sidebar from '@/Components/Sidebar.vue';
 
 const props = defineProps({
     totalAccounts: { type: Number, default: 0 },
@@ -17,12 +19,15 @@ const rooms = computed(() => page.props.rooms);
 const searchQuery = ref('');
 const managedRoomSearch = ref('');
 const allRoomsSearch = ref('');
+const activeDashboardTab = ref('room-usage');
 const dashboardSettingsOpen = ref(false);
+const sidebarOpen = ref(typeof window === 'undefined' ? true : window.innerWidth >= 1024);
 const previewRoomEquipmentsText = ref('');
 const roomDirectoryRef = ref(null);
 const scheduleFormRef = ref(null);
 const isCreateRoomPanelOpen = ref(false);
 const isAllRoomsPanelVisible = ref(false);
+const toggleSidebar = () => { sidebarOpen.value = !sidebarOpen.value; };
 
 const counts = computed(() => ({
     totalAccounts: page.props.totalAccounts ?? props.totalAccounts,
@@ -66,11 +71,6 @@ const parseDateKey = (dateKey) => {
 const formatDayLabel = (dateKey, options = { month: 'short', day: 'numeric' }) => {
     const date = parseDateKey(dateKey);
     return date ? date.toLocaleDateString('en-US', options) : 'No date';
-};
-
-const formatWeekday = (dateKey, options = { weekday: 'short' }) => {
-    const date = parseDateKey(dateKey);
-    return date ? date.toLocaleDateString('en-US', options) : '';
 };
 
 const addDays = (date, days) => {
@@ -180,6 +180,162 @@ const allRoomsPanelItems = computed(() => {
 
 const activeRooms = computed(() => filteredRooms.value.slice(0, 6));
 
+const availableRooms = computed(() => allRoomRecords.value.filter(
+    (room) => room.is_available_for_day
+        ?? (String(room.status || '').toLowerCase() === 'available'),
+));
+
+const availabilityDateLabel = computed(() => formatDayLabel(
+    page.props.availabilityDate || page.props.todayDate,
+    { weekday: 'long', month: 'long', day: 'numeric' },
+));
+
+const ROOM_USAGE_START_MINUTES = 7 * 60;
+const ROOM_USAGE_END_MINUTES = 19 * 60;
+const ROOM_USAGE_SLOT_MINUTES = 30;
+const roomUsageRoomSearch = ref('');
+
+const minutesToTimeLabel = (minutes) => {
+    const hour = Math.floor(minutes / 60);
+    const minute = minutes % 60;
+    const period = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = hour % 12 || 12;
+    return `${displayHour}:${String(minute).padStart(2, '0')} ${period}`;
+};
+
+const startOfRoomUsageWeek = (date) => {
+    const start = new Date(date);
+    const daysSinceMonday = (start.getDay() + 6) % 7;
+    start.setDate(start.getDate() - daysSinceMonday);
+    start.setHours(0, 0, 0, 0);
+    return start;
+};
+
+const preferredRoomUsageDate = () => {
+    const scheduleDates = allRoomRecords.value
+        .flatMap((room) => (room.schedules || []).map((schedule) => schedule.date))
+        .filter((date) => parseDateKey(date))
+        .sort();
+    const todayKey = toDateKey(new Date());
+    const closestUpcoming = scheduleDates.find((date) => date >= todayKey);
+
+    return parseDateKey(closestUpcoming || scheduleDates.at(-1)) || new Date();
+};
+
+const initialRoomUsageDate = preferredRoomUsageDate();
+const roomUsageReference = ref(startOfRoomUsageWeek(initialRoomUsageDate));
+const roomUsageBuilding = ref('all');
+
+const roomUsageTimeSlots = computed(() => {
+    const slots = [];
+    for (let start = ROOM_USAGE_START_MINUTES; start < ROOM_USAGE_END_MINUTES; start += ROOM_USAGE_SLOT_MINUTES) {
+        slots.push({
+            start,
+            end: start + ROOM_USAGE_SLOT_MINUTES,
+            label: `${minutesToTimeLabel(start)} – ${minutesToTimeLabel(start + ROOM_USAGE_SLOT_MINUTES)}`,
+        });
+    }
+    return slots;
+});
+
+const roomUsageWeekDays = computed(() => {
+    const start = startOfRoomUsageWeek(roomUsageReference.value);
+    return ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].map((name, index) => {
+        const date = addDays(start, index);
+        return {
+            name,
+            shortDate: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+            date: toDateKey(date),
+        };
+    });
+});
+
+const roomUsageWeekLabel = computed(() => {
+    const start = startOfRoomUsageWeek(roomUsageReference.value);
+    const end = addDays(start, 4);
+    return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} – ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+});
+
+const roomUsageBuildingOptions = computed(() => {
+    const seen = new Set();
+    return allRoomRecords.value
+        .map((room) => room.building)
+        .filter((building) => building?.id && !seen.has(building.id) && seen.add(building.id))
+        .sort((a, b) => String(a.building_name || '').localeCompare(String(b.building_name || '')));
+});
+
+const roomUsageRooms = computed(() => {
+    const query = roomUsageRoomSearch.value.trim().toLowerCase();
+    return allRoomRecords.value
+        .filter((room) => roomUsageBuilding.value === 'all' || String(room.building?.id || '') === String(roomUsageBuilding.value))
+        .filter((room) => !query || roomMatchesQuery(room, query))
+        .slice()
+        .sort((a, b) => {
+            const buildingCompare = String(a.building?.building_name || '').localeCompare(String(b.building?.building_name || ''));
+            return buildingCompare || String(a.room_code || a.room_name || '').localeCompare(String(b.room_code || b.room_name || ''));
+        });
+});
+
+const roomUsageGridColumns = computed(() => `96px repeat(${roomUsageRooms.value.length}, minmax(118px, 1fr))`);
+
+const roomUsageBuildingBands = computed(() => {
+    const bands = [];
+    roomUsageRooms.value.forEach((room, index) => {
+        const label = room.building?.building_name || 'Unassigned Building';
+        const previous = bands.at(-1);
+        if (previous?.label === label) {
+            previous.count += 1;
+        } else {
+            bands.push({ label, start: index + 2, count: 1 });
+        }
+    });
+    return bands;
+});
+
+const scheduleMinutes = (time) => {
+    const [hour, minute] = String(time || '').split(':').map(Number);
+    return Number.isFinite(hour) && Number.isFinite(minute) ? (hour * 60) + minute : null;
+};
+
+const roomUsageSchedulesForDay = (date) => roomUsageRooms.value.flatMap((room, roomIndex) => (
+    (room.schedules || [])
+        .filter((schedule) => schedule.date === date && String(schedule.status || '').toLowerCase() !== 'cancelled')
+        .map((schedule) => {
+            const scheduleStart = scheduleMinutes(schedule.start_time);
+            const scheduleEnd = scheduleMinutes(schedule.end_time);
+            if (scheduleStart === null || scheduleEnd === null || scheduleEnd <= ROOM_USAGE_START_MINUTES || scheduleStart >= ROOM_USAGE_END_MINUTES) return null;
+
+            const startSlot = Math.max(0, Math.floor((scheduleStart - ROOM_USAGE_START_MINUTES) / ROOM_USAGE_SLOT_MINUTES));
+            const endSlot = Math.min(roomUsageTimeSlots.value.length, Math.ceil((scheduleEnd - ROOM_USAGE_START_MINUTES) / ROOM_USAGE_SLOT_MINUTES));
+            const title = schedule.course_code || schedule.course_name || schedule.event_title || 'Allocated schedule';
+            const section = schedule.section ? ` – ${schedule.section}` : '';
+
+            return {
+                ...schedule,
+                displayTitle: `${title}${section}`,
+                roomName: room.room_name,
+                style: {
+                    gridColumn: String(roomIndex + 2),
+                    gridRow: `${startSlot + 2} / ${endSlot + 2}`,
+                },
+            };
+        })
+        .filter(Boolean)
+));
+
+const roomUsageScheduleCount = computed(() => roomUsageWeekDays.value.reduce(
+    (total, day) => total + roomUsageSchedulesForDay(day.date).length,
+    0,
+));
+
+const moveRoomUsageWeek = (weeks) => {
+    roomUsageReference.value = addDays(startOfRoomUsageWeek(roomUsageReference.value), weeks * 7);
+};
+
+const showCurrentRoomUsageWeek = () => {
+    roomUsageReference.value = startOfRoomUsageWeek(new Date());
+};
+
 const dashboardCalendar = computed(() => {
     const startDate = parseDateKey(page.props.calendarStart) || new Date();
     const endDate = parseDateKey(page.props.calendarEnd) || addDays(startDate, 41);
@@ -216,22 +372,68 @@ const dashboardCalendar = computed(() => {
 });
 
 const roomPreviewSchedules = computed(() => currentPreviewRoom.value?.schedules || []);
+const roomCalendarReference = ref(new Date());
 
-const roomPreviewScheduleDays = computed(() => {
-    const grouped = roomPreviewSchedules.value.reduce((groups, schedule) => {
-        const key = schedule.date || 'No date';
-        if (!groups[key]) groups[key] = [];
-        groups[key].push(schedule);
+const roomScheduleCalendar = computed(() => {
+    const reference = roomCalendarReference.value;
+    const year = reference.getFullYear();
+    const month = reference.getMonth();
+    const firstOfMonth = new Date(year, month, 1);
+    const gridStart = addDays(firstOfMonth, -firstOfMonth.getDay());
+    const schedulesByDate = roomPreviewSchedules.value.reduce((groups, schedule) => {
+        if (!schedule.date) return groups;
+        if (!groups[schedule.date]) groups[schedule.date] = [];
+        groups[schedule.date].push(schedule);
         return groups;
     }, {});
+    const todayKey = toDateKey(new Date());
+    const days = Array.from({ length: 42 }, (_, index) => {
+        const date = addDays(gridStart, index);
+        const dateKey = toDateKey(date);
 
-    return Object.entries(grouped).map(([date, schedules]) => ({
-        date,
-        label: date === 'No date' ? 'No date' : formatDayLabel(date, { month: 'short', day: 'numeric' }),
-        weekday: date === 'No date' ? '' : formatWeekday(date, { weekday: 'short' }),
-        schedules,
-    }));
+        return {
+            date: dateKey,
+            dayNumber: date.getDate(),
+            isCurrentMonth: date.getMonth() === month && date.getFullYear() === year,
+            isToday: dateKey === todayKey,
+            schedules: (schedulesByDate[dateKey] || []).slice().sort((a, b) => (
+                String(a.start_time || '').localeCompare(String(b.start_time || ''))
+            )),
+        };
+    });
+
+    return {
+        label: reference.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+        weekdays: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+        days,
+        visibleScheduleCount: days.reduce((count, day) => (
+            day.isCurrentMonth ? count + day.schedules.length : count
+        ), 0),
+    };
 });
+
+const setRoomCalendarReference = (room) => {
+    const dateKeys = (room?.schedules || [])
+        .map((schedule) => schedule.date)
+        .filter((date) => parseDateKey(date))
+        .sort();
+    const todayKey = toDateKey(new Date());
+    const targetKey = dateKeys.find((date) => date >= todayKey) || dateKeys[0] || todayKey;
+    const targetDate = parseDateKey(targetKey) || new Date();
+    roomCalendarReference.value = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1);
+};
+
+const changeRoomCalendarMonth = (direction) => {
+    const next = new Date(roomCalendarReference.value);
+    next.setDate(1);
+    next.setMonth(next.getMonth() + direction);
+    roomCalendarReference.value = next;
+};
+
+const showCurrentRoomCalendarMonth = () => {
+    const today = new Date();
+    roomCalendarReference.value = new Date(today.getFullYear(), today.getMonth(), 1);
+};
 
 const progressValue = computed(() => {
     if (!counts.value.totalRooms) return 0;
@@ -386,6 +588,7 @@ const openRoomPreviewPanel = (room, returnToAllRooms = false) => {
 
     currentPreviewRoom.value = room || null;
     shouldReturnToAllRoomsPanel.value = returnToAllRooms;
+    setRoomCalendarReference(room);
     populatePreviewRoomForm(room);
     populateScheduleForm(room);
     isRoomPreviewPanelVisible.value = true;
@@ -523,11 +726,12 @@ const goToPage = (url) => {
         preserveState: true,
         replace: true,
         preserveScroll: true,
+        viewTransition: true,
     });
 };
 
 const goToCardTarget = (target) => {
-    if (target) router.visit(target);
+    if (target) router.visit(target, { viewTransition: true });
 };
 
 onMounted(() => {
@@ -539,7 +743,7 @@ onMounted(() => {
 </script>
 
 <template>
-    <div class="min-h-screen bg-slate-50 text-slate-950">
+    <div class="app-shell">
         <MessageFunction
             :show-create-success="showCreateSuccess"
             :show-edit-success="showEditSuccess"
@@ -556,8 +760,19 @@ onMounted(() => {
             @close-info="showInfo = false"
         />
 
-        <div class="dashboard-shell grid min-h-screen w-full grid-cols-1 lg:grid-cols-[245px_minmax(0,1fr)]">
-            <aside class="hidden min-h-screen bg-[#005740] px-6 py-7 text-white lg:block">
+        <Navbar @toggle-sidebar="toggleSidebar" />
+
+        <div class="app-frame dashboard-shell">
+            <Sidebar
+                :sidebar-open="sidebarOpen"
+                :class="[
+                    'fixed left-0 top-[4.5rem] z-20 h-[calc(100vh-4.5rem)] lg:fixed lg:top-0 lg:h-screen',
+                    sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:hidden'
+                ]"
+            />
+            <button v-if="sidebarOpen" type="button" class="fixed inset-0 z-[19] bg-slate-950/35 lg:hidden" aria-label="Close sidebar" @click="sidebarOpen = false"></button>
+
+            <aside class="hidden">
                 <nav class="space-y-2 text-sm">
                     <a href="/MainDashboard" class="nav-item active">
                         <span class="nav-icon">
@@ -576,6 +791,12 @@ onMounted(() => {
                             <svg viewBox="0 0 24 24" fill="none"><path d="M7 3v4M17 3v4M4 9h16M6 5h12a2 2 0 0 1 2 2v12H4V7a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="1.7"/></svg>
                         </span>
                         Calendar
+                    </a>
+                    <a href="/Schedule/Import" class="nav-item">
+                        <span class="nav-icon">
+                            <svg viewBox="0 0 24 24" fill="none"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 14v5h14v-5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        </span>
+                        Import Schedules
                     </a>
                     <a href="/Analytics" class="nav-item">
                         <span class="nav-icon">
@@ -634,8 +855,8 @@ onMounted(() => {
                 </div> -->
             </aside>
 
-            <main class="min-w-0 px-4 py-4 sm:px-5 lg:min-h-screen lg:px-6">
-                <div class="topbar mb-4 hidden items-center justify-between gap-4 text-white lg:flex">
+            <main class="app-main dashboard-main transition-all duration-300" :class="sidebarOpen ? 'lg:ml-[250px]' : 'lg:ml-0'">
+                <div class="hidden">
                     <div class="relative w-full max-w-[420px]">
                         <input
                             v-model="searchQuery"
@@ -667,7 +888,11 @@ onMounted(() => {
                     </div>
                 </div>
 
-                <section class="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:gap-4">
+                <header class="app-page-header dashboard-page-header">
+                    <div><span class="app-breadcrumb">University of the Philippines Cebu</span><h1 class="app-page-title">Dashboard</h1></div>
+                </header>
+
+                <section class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:gap-4">
                     <article
                         v-for="item in stats"
                         :key="item.label"
@@ -694,120 +919,342 @@ onMounted(() => {
                     </article>
                 </section>
 
-                <section class="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.75fr)_minmax(300px,0.7fr)] 2xl:gap-4">
-                    <article class="dashboard-card dashboard-calendar-card">
-                        <div class="dashboard-calendar-header">
-                            <div>
-                                <h2 class="text-base font-semibold text-black">Calendar</h2>
-                                <p class="mt-1 text-xs text-slate-500">{{ calendarSchedules.length }} schedules visible on dashboard</p>
-                            </div>
-                            <div class="flex items-center gap-3">
-                                <span class="calendar-month-label">{{ dashboardCalendar.monthLabel }}</span>
-                                <button type="button" class="room-preview-primary" @click="openAllRoomsPanel">Set Schedule</button>
-                            </div>
-                        </div>
-                        <div class="calendar-weekdays">
-                            <span v-for="weekday in dashboardCalendar.weekdays" :key="weekday">{{ weekday }}</span>
-                        </div>
-                        <div class="calendar-month-grid">
-                            <div
-                                v-for="day in dashboardCalendar.days"
-                                :key="day.date"
-                                class="calendar-day-cell"
-                                :class="{ 'calendar-day-muted': !day.isCurrentMonth }"
-                            >
-                                <div class="calendar-day-top">
-                                    <span>{{ day.dayNumber }}</span>
-                                    <strong v-if="day.schedules.length">{{ day.schedules.length }}</strong>
-                                </div>
-                                <div class="calendar-events">
-                                    <button
-                                        v-for="schedule in day.schedules.slice(0, 3)"
-                                        :key="schedule.id"
-                                        type="button"
-                                        class="calendar-event-pill"
-                                        @click="openScheduleRoom(schedule)"
-                                    >
-                                        <span>{{ schedule.start_time }}</span>
-                                        <strong>{{ schedule.room_code || schedule.room_name || 'Room' }}</strong>
-                                        <em>{{ schedule.course_name || schedule.event_title || 'Schedule' }}</em>
-                                    </button>
-                                    <span v-if="day.schedules.length > 3" class="calendar-more">+{{ day.schedules.length - 3 }} more</span>
-                                </div>
-                            </div>
-                        </div>
-                    </article>
-
-                    <article class="dashboard-card">
-                        <div class="mb-4 flex items-center justify-between">
-                            <h2 class="text-base font-semibold text-black">Managed Rooms</h2>
-                            <div class="flex items-center gap-2">
-                                <button
-                                    type="button"
-                                    class="rounded-lg border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700"
-                                    @click="openAllRoomsPanel"
-                                >
-                                    All Rooms
-                                </button>
-                                <button
-                                    type="button"
-                                    class="rounded-lg border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700"
-                                    @click="openCreateRoomPanel"
-                                >
-                                    + New
-                                </button>
-                            </div>
-                        </div>
-                        <div class="relative mb-3">
-                            <input
-                                v-model="managedRoomSearch"
-                                type="text"
-                                placeholder="Search managed rooms..."
-                                class="managed-room-search"
-                            />
-                            <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none">
-                                <path d="m21 21-4.3-4.3M11 18a7 7 0 1 1 0-14 7 7 0 0 1 0 14Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                            </svg>
+                <section class="grid grid-cols-1 gap-3">
+                    <article class="dashboard-card dashboard-tab-card">
+                        <div class="dashboard-tabs" role="tablist" aria-label="Room usage, availability, and calendar">
                             <button
-                                v-if="managedRoomSearch"
+                                id="room-usage-tab"
                                 type="button"
-                                class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 hover:text-[#005740]"
-                                @click="managedRoomSearch = ''"
+                                role="tab"
+                                class="dashboard-tab"
+                                :class="{ active: activeDashboardTab === 'room-usage' }"
+                                :aria-selected="activeDashboardTab === 'room-usage'"
+                                aria-controls="room-usage-panel"
+                                @click="activeDashboardTab = 'room-usage'"
                             >
-                                Clear
+                                Room Usage
+                                <span>{{ roomUsageScheduleCount }}</span>
+                            </button>
+                            <button
+                                id="available-rooms-tab"
+                                type="button"
+                                role="tab"
+                                class="dashboard-tab"
+                                :class="{ active: activeDashboardTab === 'available-rooms' }"
+                                :aria-selected="activeDashboardTab === 'available-rooms'"
+                                aria-controls="available-rooms-panel"
+                                @click="activeDashboardTab = 'available-rooms'"
+                            >
+                                Available Rooms
+                                <span>{{ availableRooms.length }}</span>
+                            </button>
+                            <button
+                                id="calendar-tab"
+                                type="button"
+                                role="tab"
+                                class="dashboard-tab"
+                                :class="{ active: activeDashboardTab === 'calendar' }"
+                                :aria-selected="activeDashboardTab === 'calendar'"
+                                aria-controls="calendar-panel"
+                                @click="activeDashboardTab = 'calendar'"
+                            >
+                                Calendar
+                            </button>
+                            <button
+                                id="managed-rooms-tab"
+                                type="button"
+                                role="tab"
+                                class="dashboard-tab"
+                                :class="{ active: activeDashboardTab === 'managed-rooms' }"
+                                :aria-selected="activeDashboardTab === 'managed-rooms'"
+                                aria-controls="managed-rooms-panel"
+                                @click="activeDashboardTab = 'managed-rooms'"
+                            >
+                                Managed Rooms
+                                <span>{{ projectItems.length }}</span>
                             </button>
                         </div>
-                        <div class="space-y-3">
-                            <div
-                                v-for="project in projectItems"
-                                :key="project.id"
-                                class="managed-room-row"
-                            >
-                                <span class="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg text-white" :style="{ backgroundColor: project.color }">
-                                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none"><path d="M7 17 17 7M8 7h9v9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-                                </span>
-                                <button type="button" class="min-w-0 flex-1 text-left" @click="openRoomPreviewPanel(project.room)">
-                                    <span class="block truncate text-sm font-semibold leading-tight text-black">{{ project.title }}</span>
-                                    <span class="block truncate text-xs leading-4 text-slate-500">{{ project.subtitle }}</span>
-                                    <span class="block text-[11px] leading-3 text-slate-400">{{ project.meta }}</span>
-                                </button>
-                                <div class="flex shrink-0 items-center gap-1.5">
-                                    <button type="button" class="room-action-button room-action-primary" @click="openRoomPreviewPanel(project.room)">
-                                        Preview
+
+                        <div
+                            v-show="activeDashboardTab === 'room-usage'"
+                            id="room-usage-panel"
+                            role="tabpanel"
+                            aria-labelledby="room-usage-tab"
+                            class="dashboard-tab-panel room-usage-panel"
+                        >
+                            <div class="room-usage-toolbar">
+                                <div>
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <h2 class="text-base font-semibold text-black">Room Usage</h2>
+                                        <span class="room-usage-count">{{ roomUsageScheduleCount }} allocated</span>
+                                    </div>
+                                    <p class="mt-1 text-xs text-slate-500">Weekly room allocation in 30-minute intervals · {{ roomUsageWeekLabel }}</p>
+                                </div>
+                                <div class="room-usage-week-actions" aria-label="Choose schedule week">
+                                    <button type="button" aria-label="Previous week" @click="moveRoomUsageWeek(-1)">‹</button>
+                                    <button type="button" class="room-usage-today" @click="showCurrentRoomUsageWeek">This week</button>
+                                    <button type="button" aria-label="Next week" @click="moveRoomUsageWeek(1)">›</button>
+                                </div>
+                            </div>
+
+                            <div class="room-usage-filters">
+                                <label>
+                                    <span>Building</span>
+                                    <select v-model="roomUsageBuilding">
+                                        <option value="all">All buildings</option>
+                                        <option v-for="building in roomUsageBuildingOptions" :key="building.id" :value="building.id">
+                                            {{ building.building_name }}
+                                        </option>
+                                    </select>
+                                </label>
+                                <label class="room-usage-search">
+                                    <span>Find a room</span>
+                                    <input v-model="roomUsageRoomSearch" type="search" placeholder="Room code or room name" />
+                                </label>
+                                <div class="room-usage-legend" aria-label="Schedule legend">
+                                    <span><i class="is-scheduled"></i> Scheduled</span>
+                                    <span><i class="is-vacant"></i> Vacant</span>
+                                </div>
+                            </div>
+
+                            <div v-if="roomUsageRooms.length" class="room-usage-scroll" tabindex="0" aria-label="Scrollable weekly room usage table">
+                                <div class="room-usage-content" :style="{ minWidth: `calc(96px + ${roomUsageRooms.length * 118}px)` }">
+                                    <div class="room-usage-building-grid" :style="{ gridTemplateColumns: roomUsageGridColumns }">
+                                        <div class="room-usage-corner">SCHEDULE</div>
+                                        <div
+                                            v-for="band in roomUsageBuildingBands"
+                                            :key="`${band.label}-${band.start}`"
+                                            class="room-usage-building-band"
+                                            :style="{ gridColumn: `${band.start} / span ${band.count}` }"
+                                        >
+                                            {{ band.label }}
+                                        </div>
+                                    </div>
+                                    <div class="room-usage-room-grid" :style="{ gridTemplateColumns: roomUsageGridColumns }">
+                                        <div class="room-usage-time-heading">TIME</div>
+                                        <button
+                                            v-for="room in roomUsageRooms"
+                                            :key="room.id"
+                                            type="button"
+                                            class="room-usage-room-heading"
+                                            :title="`${room.room_name || 'Unnamed room'} · ${room.building?.building_name || 'No building'}`"
+                                            @click="openRoomPreviewPanel(room)"
+                                        >
+                                            <strong>{{ room.room_code || room.room_name || 'NO CODE' }}</strong>
+                                            <span>{{ room.room_name || 'Unnamed room' }}</span>
+                                        </button>
+                                    </div>
+
+                                    <div
+                                        v-for="day in roomUsageWeekDays"
+                                        :key="day.date"
+                                        class="room-usage-day-grid"
+                                        :style="{
+                                            gridTemplateColumns: roomUsageGridColumns,
+                                            gridTemplateRows: `32px repeat(${roomUsageTimeSlots.length}, 28px)`,
+                                        }"
+                                    >
+                                        <div class="room-usage-day-heading">
+                                            <strong>{{ day.name }}</strong>
+                                            <span>{{ day.shortDate }}</span>
+                                        </div>
+
+                                        <template v-for="(slot, slotIndex) in roomUsageTimeSlots" :key="`${day.date}-${slot.start}`">
+                                            <div class="room-usage-time-cell" :style="{ gridColumn: '1', gridRow: String(slotIndex + 2) }">
+                                                {{ slot.label }}
+                                            </div>
+                                            <div
+                                                v-for="(room, roomIndex) in roomUsageRooms"
+                                                :key="`${day.date}-${slot.start}-${room.id}`"
+                                                class="room-usage-vacant-cell"
+                                                :class="{ 'is-hour': slotIndex % 2 === 0 }"
+                                                :style="{ gridColumn: String(roomIndex + 2), gridRow: String(slotIndex + 2) }"
+                                            ></div>
+                                        </template>
+
+                                        <button
+                                            v-for="schedule in roomUsageSchedulesForDay(day.date)"
+                                            :key="schedule.id"
+                                            type="button"
+                                            class="room-usage-schedule-block"
+                                            :style="schedule.style"
+                                            :title="`${schedule.displayTitle} · ${schedule.roomName} · ${schedule.start_time}–${schedule.end_time}`"
+                                            @click="openScheduleRoom(schedule)"
+                                        >
+                                            <strong>{{ schedule.displayTitle }}</strong>
+                                            <span>{{ schedule.start_time }}–{{ schedule.end_time }}</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div v-else class="room-usage-empty">
+                                <strong>No rooms match these filters.</strong>
+                                <span>Choose another building or clear the room search.</span>
+                            </div>
+                        </div>
+
+                        <div
+                            v-show="activeDashboardTab === 'available-rooms'"
+                            id="available-rooms-panel"
+                            role="tabpanel"
+                            aria-labelledby="available-rooms-tab"
+                            class="dashboard-tab-panel"
+                        >
+                            <div class="dashboard-tab-header">
+                                <div>
+                                    <h2 class="text-base font-semibold text-black">Available Rooms</h2>
+                                    <p class="mt-1 text-xs text-slate-500">
+                                        {{ availabilityDateLabel }} · Has open time between 7:00 AM and 9:00 PM
+                                    </p>
+                                </div>
+                                <button type="button" class="room-preview-primary" @click="openAllRoomsPanel">Set Schedule</button>
+                            </div>
+
+                            <div class="available-room-list">
+                                <div
+                                    v-for="room in availableRooms"
+                                    :key="room.id"
+                                    class="available-room-row"
+                                >
+                                    <span class="available-room-icon" aria-hidden="true">
+                                        <svg viewBox="0 0 24 24" fill="none"><path d="M4 20V8l8-4 8 4v12H4Z" stroke="currentColor" stroke-width="1.8"/><path d="M9 20v-6h6v6" stroke="currentColor" stroke-width="1.8"/></svg>
+                                    </span>
+                                    <button type="button" class="min-w-0 flex-1 text-left" @click="openRoomPreviewPanel(room)">
+                                        <span class="block truncate text-sm font-semibold text-slate-950">{{ room.room_name || 'Unnamed Room' }}</span>
+                                        <span class="mt-1 block truncate text-xs text-slate-500">
+                                            {{ room.room_code || 'No code' }} · {{ room.building?.building_name || room.location || 'Campus location' }}
+                                        </span>
                                     </button>
-                                    <button type="button" class="room-action-button" @click="router.visit('/Rooms')">
-                                        Open
+                                    <div class="available-room-details">
+                                        <span>{{ room.college?.college_name || 'No college assigned' }}</span>
+                                        <span>{{ room.capacity ? `${room.capacity} seats` : 'Capacity not set' }}</span>
+                                    </div>
+                                    <span class="available-room-status">Has availability</span>
+                                    <button type="button" class="room-action-button room-action-primary" @click="openRoomPreviewPanel(room)">View</button>
+                                </div>
+
+                                <div v-if="availableRooms.length === 0" class="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-12 text-center text-sm text-slate-500">
+                                    No rooms have open time today between 7:00 AM and 9:00 PM.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div
+                            v-show="activeDashboardTab === 'calendar'"
+                            id="calendar-panel"
+                            role="tabpanel"
+                            aria-labelledby="calendar-tab"
+                            class="dashboard-tab-panel dashboard-calendar-card"
+                        >
+                            <div class="dashboard-calendar-header">
+                                <div>
+                                    <h2 class="text-base font-semibold text-black">Calendar</h2>
+                                    <p class="mt-1 text-xs text-slate-500">{{ calendarSchedules.length }} schedules visible on dashboard</p>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <span class="calendar-month-label">{{ dashboardCalendar.monthLabel }}</span>
+                                    <button type="button" class="room-preview-primary" @click="openAllRoomsPanel">Set Schedule</button>
+                                </div>
+                            </div>
+                            <div class="calendar-weekdays">
+                                <span v-for="weekday in dashboardCalendar.weekdays" :key="weekday">{{ weekday }}</span>
+                            </div>
+                            <div class="calendar-month-grid">
+                                <div
+                                    v-for="day in dashboardCalendar.days"
+                                    :key="day.date"
+                                    class="calendar-day-cell"
+                                    :class="{ 'calendar-day-muted': !day.isCurrentMonth }"
+                                >
+                                    <div class="calendar-day-top">
+                                        <span>{{ day.dayNumber }}</span>
+                                        <strong v-if="day.schedules.length">{{ day.schedules.length }}</strong>
+                                    </div>
+                                    <div class="calendar-events">
+                                        <button
+                                            v-for="schedule in day.schedules.slice(0, 3)"
+                                            :key="schedule.id"
+                                            type="button"
+                                            class="calendar-event-pill"
+                                            @click="openScheduleRoom(schedule)"
+                                        >
+                                            <span>{{ schedule.start_time }}</span>
+                                            <strong>{{ schedule.room_code || schedule.room_name || 'Room' }}</strong>
+                                            <em>{{ schedule.course_name || schedule.event_title || 'Schedule' }}</em>
+                                        </button>
+                                        <span v-if="day.schedules.length > 3" class="calendar-more">+{{ day.schedules.length - 3 }} more</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div
+                            v-show="activeDashboardTab === 'managed-rooms'"
+                            id="managed-rooms-panel"
+                            role="tabpanel"
+                            aria-labelledby="managed-rooms-tab"
+                            class="dashboard-tab-panel managed-rooms-panel"
+                        >
+                            <div class="dashboard-tab-header">
+                                <div>
+                                    <h2 class="text-base font-semibold text-black">Managed Rooms</h2>
+                                    <p class="mt-1 text-xs text-slate-500">Search, preview, or open a room record from one workspace.</p>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <button type="button" class="room-action-button" @click="openAllRoomsPanel">All Rooms</button>
+                                    <button type="button" class="room-action-button room-action-primary" @click="openCreateRoomPanel">+ New Room</button>
+                                </div>
+                            </div>
+
+                            <div class="managed-rooms-toolbar">
+                                <div class="relative w-full">
+                                    <input
+                                        v-model="managedRoomSearch"
+                                        type="search"
+                                        placeholder="Search by room, college, building, or schedule..."
+                                        class="managed-room-search"
+                                    />
+                                    <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                        <path d="m21 21-4.3-4.3M11 18a7 7 0 1 1 0-14 7 7 0 0 1 0 14Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                                    </svg>
+                                    <button
+                                        v-if="managedRoomSearch"
+                                        type="button"
+                                        class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 hover:text-[#005740]"
+                                        @click="managedRoomSearch = ''"
+                                    >
+                                        Clear
                                     </button>
                                 </div>
                             </div>
-                            <div v-if="projectItems.length === 0" class="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
-                                No managed rooms found.
+
+                            <div class="managed-rooms-grid">
+                                <article v-for="project in projectItems" :key="project.id" class="managed-room-card">
+                                    <span class="managed-room-card-icon" aria-hidden="true">
+                                        <svg viewBox="0 0 24 24" fill="none"><path d="M4 20V8l8-4 8 4v12H4Z" stroke="currentColor" stroke-width="1.8"/><path d="M9 20v-6h6v6" stroke="currentColor" stroke-width="1.8"/></svg>
+                                    </span>
+                                    <button type="button" class="min-w-0 flex-1 text-left" @click="openRoomPreviewPanel(project.room)">
+                                        <strong class="block truncate text-sm text-slate-950">{{ project.title }}</strong>
+                                        <span class="mt-1 block truncate text-xs text-slate-500">{{ project.subtitle }}</span>
+                                        <span class="mt-1 block text-[11px] font-semibold text-[#005740]">{{ project.meta }}</span>
+                                    </button>
+                                    <div class="managed-room-card-actions">
+                                        <button type="button" class="room-action-button room-action-primary" @click="openRoomPreviewPanel(project.room)">Preview</button>
+                                        <button type="button" class="room-action-button" @click="router.visit('/Rooms', { viewTransition: true })">Open</button>
+                                    </div>
+                                </article>
+
+                                <div v-if="projectItems.length === 0" class="managed-rooms-empty">
+                                    <strong>No managed rooms found.</strong>
+                                    <span>Try another search or create a new room.</span>
+                                </div>
                             </div>
                         </div>
                     </article>
                 </section>
 
-                <section class="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.25fr)_minmax(330px,0.8fr)] 2xl:gap-4">
+                <section class="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.25fr)_minmax(330px,0.8fr)] 2xl:gap-4 hidden">
                     <article ref="roomDirectoryRef" class="dashboard-card">
                         <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <h2 class="text-base font-semibold text-black">Room Directory</h2>
@@ -1036,7 +1483,7 @@ onMounted(() => {
                     </div>
                     <div class="flex flex-wrap items-center justify-end gap-2">
                         <button type="button" class="room-preview-action" @click="openCreateRoomFromAllRooms">+ New Room</button>
-                        <button type="button" class="room-preview-action" @click="router.visit('/Rooms')">Manage Rooms</button>
+                        <button type="button" class="room-preview-action" @click="router.visit('/Rooms', { viewTransition: true })">Manage Rooms</button>
                         <button type="button" class="room-preview-close" @click="closeAllRoomsPanel">Close</button>
                     </div>
                 </div>
@@ -1085,7 +1532,7 @@ onMounted(() => {
                                 {{ item.room.status || 'available' }}
                             </span>
                             <button type="button" class="room-action-button room-action-primary" @click="openRoomPreviewFromAllRooms(item.room)">Preview</button>
-                            <button type="button" class="room-action-button" @click="router.visit('/Rooms')">Open</button>
+                            <button type="button" class="room-action-button" @click="router.visit('/Rooms', { viewTransition: true })">Open</button>
                         </div>
                     </div>
 
@@ -1150,6 +1597,61 @@ onMounted(() => {
                             </div>
                         </div>
                     </section>
+
+                    <article class="room-preview-card room-schedule-calendar" aria-label="Room schedule calendar">
+                        <div class="room-calendar-toolbar">
+                            <div>
+                                <p class="room-calendar-eyebrow">Allocated schedules</p>
+                                <h3>{{ roomScheduleCalendar.label }}</h3>
+                                <p class="mt-1 text-xs text-slate-500">
+                                    {{ roomScheduleCalendar.visibleScheduleCount }}
+                                    {{ roomScheduleCalendar.visibleScheduleCount === 1 ? 'schedule' : 'schedules' }} plotted for
+                                    {{ currentPreviewRoom.room_name || 'this room' }}
+                                </p>
+                            </div>
+                            <div class="room-calendar-actions">
+                                <button type="button" aria-label="Previous month" @click="changeRoomCalendarMonth(-1)">‹</button>
+                                <button type="button" class="room-calendar-today" @click="showCurrentRoomCalendarMonth">Today</button>
+                                <button type="button" aria-label="Next month" @click="changeRoomCalendarMonth(1)">›</button>
+                            </div>
+                        </div>
+
+                        <div class="room-calendar-scroll">
+                            <div class="room-calendar-weekdays">
+                                <span v-for="weekday in roomScheduleCalendar.weekdays" :key="weekday">{{ weekday }}</span>
+                            </div>
+                            <div class="room-calendar-grid">
+                                <div
+                                    v-for="day in roomScheduleCalendar.days"
+                                    :key="day.date"
+                                    class="room-calendar-day"
+                                    :class="{
+                                        'is-outside-month': !day.isCurrentMonth,
+                                        'is-today': day.isToday,
+                                        'has-schedules': day.schedules.length,
+                                    }"
+                                >
+                                    <div class="room-calendar-day-number">
+                                        <span>{{ day.dayNumber }}</span>
+                                        <strong v-if="day.schedules.length">{{ day.schedules.length }}</strong>
+                                    </div>
+                                    <div class="room-calendar-allocations">
+                                        <div
+                                            v-for="schedule in day.schedules.slice(0, 3)"
+                                            :key="schedule.id"
+                                            class="room-calendar-allocation"
+                                            :title="`${schedule.start_time || 'N/A'}–${schedule.end_time || 'N/A'} · ${schedule.course_name || schedule.event_title || 'Schedule'}`"
+                                        >
+                                            <span>{{ schedule.start_time || 'N/A' }}–{{ schedule.end_time || 'N/A' }}</span>
+                                            <strong>{{ schedule.course_code || schedule.course_name || schedule.event_title || 'Schedule' }}</strong>
+                                            <em>{{ schedule.status || 'scheduled' }}</em>
+                                        </div>
+                                        <span v-if="day.schedules.length > 3" class="room-calendar-more">+{{ day.schedules.length - 3 }} more</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </article>
 
                     <section class="room-workspace-grid">
                         <article class="room-preview-card room-edit-card">
@@ -1244,37 +1746,12 @@ onMounted(() => {
                         <article ref="scheduleFormRef" class="room-preview-card room-schedule-side">
                             <div class="flex items-center justify-between gap-3">
                                 <div>
-                                    <h3>Schedule</h3>
-                                    <p class="mt-1 text-xs text-slate-500">Calendar-style room availability and quick scheduling.</p>
+                                    <h3>Create Schedule</h3>
+                                    <p class="mt-1 text-xs text-slate-500">Add another schedule allocation for this room.</p>
                                 </div>
                                 <button type="button" class="room-preview-primary" :disabled="scheduleForm.processing" @click="submitInlineSchedule">
                                     {{ scheduleForm.processing ? 'Saving...' : 'Create Schedule' }}
                                 </button>
-                            </div>
-
-                            <div class="room-mini-calendar">
-                                <div v-if="roomPreviewScheduleDays.length === 0" class="room-empty-calendar">
-                                    No schedules found for this room.
-                                </div>
-                                <template v-else>
-                                    <div
-                                        v-for="day in roomPreviewScheduleDays"
-                                        :key="day.date"
-                                        class="room-mini-day"
-                                    >
-                                        <div class="room-mini-date">
-                                            <span>{{ day.weekday }}</span>
-                                            <strong>{{ day.label }}</strong>
-                                        </div>
-                                        <div class="room-mini-events">
-                                            <div v-for="schedule in day.schedules" :key="schedule.id" class="room-mini-event">
-                                                <span>{{ schedule.start_time || 'N/A' }} - {{ schedule.end_time || 'N/A' }}</span>
-                                                <strong>{{ schedule.course_name || schedule.event_title || schedule.cfic_id || 'Schedule' }}</strong>
-                                                <em>{{ schedule.status || 'scheduled' }}</em>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </template>
                             </div>
 
                             <div class="schedule-table-form">
@@ -1397,8 +1874,12 @@ onMounted(() => {
 
 <style scoped>
 .dashboard-shell {
-    font-family: Inter, Figtree, ui-sans-serif, system-ui, sans-serif;
+    width: 100%;
+    font-family: Arial, Helvetica, sans-serif;
 }
+
+.dashboard-main{background:radial-gradient(circle at 96% 4%,rgba(0,87,64,.045),transparent 23rem),#f5f2ec}
+.dashboard-page-header{margin-bottom:1.2rem}
 
 .topbar {
     min-height: 4rem;
@@ -1591,9 +2072,9 @@ onMounted(() => {
 
 .metric-card,
 .dashboard-card {
-    border-radius: 1rem;
-    border: 1px solid rgba(0, 87, 64, 0.14);
-    box-shadow: 0 16px 36px rgba(15, 23, 42, 0.06);
+    border-radius: 1.05rem;
+    border: 1px solid rgba(255,255,255,.92);
+    box-shadow: 0 16px 36px rgba(33,53,47,.075),inset 0 1px #fff;
 }
 
 .metric-card {
@@ -1601,25 +2082,25 @@ onMounted(() => {
     min-height: 132px;
     overflow: hidden;
     padding: 1rem;
-    color: #ffffff;
-    background:
-        linear-gradient(115deg, rgba(255, 255, 255, 0.2), transparent 34%, rgba(255, 255, 255, 0.08) 72%),
-        linear-gradient(135deg, #005740 0%, #006b4f 52%, #00785a 100%);
-    box-shadow:
-        0 18px 38px rgba(0, 87, 64, 0.18),
-        inset 0 1px 0 rgba(255, 255, 255, 0.24);
+    color: #21352f;
+    background: linear-gradient(138deg,#fff 0%,rgba(255,255,255,.9) 58%,rgba(240,247,243,.82) 100%);
+    border-top: 3px solid #178063;
 }
 
 .metric-card::before {
-    position: absolute;
-    inset: -30% auto auto 50%;
-    width: 12rem;
-    height: 12rem;
+    position:absolute;
+    right:-2.4rem;
+    bottom:-3rem;
+    width:8.5rem;
+    height:8.5rem;
     content: "";
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.12);
-    filter: blur(10px);
+    border:1.1rem solid rgba(0,87,64,.07);
+    box-shadow:0 0 0 1.1rem rgba(0,87,64,.035);
 }
+
+.metric-card:nth-child(3n+1){border-top-color:#d99b22}.metric-card:nth-child(3n+1)::before{border-color:rgba(217,155,34,.1);box-shadow:0 0 0 1.1rem rgba(217,155,34,.04)}
+.metric-card :deep(.text-white){color:#005740!important}.metric-card :deep(.text-green-100){color:#6d7a75!important}.metric-card :deep(.border-green-100\/50){border-color:#d9e3de!important;color:#005740!important}
 
 .metric-card > * {
     position: relative;
@@ -1634,6 +2115,346 @@ onMounted(() => {
     box-shadow:
         0 16px 36px rgba(15, 23, 42, 0.05),
         inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.dashboard-tab-card {
+    padding: 0;
+    overflow: hidden;
+}
+
+.dashboard-tabs {
+    display: flex;
+    gap: 0.65rem;
+    border-bottom: 1px solid #e5eee9;
+    background: #f8fbfa;
+    padding: 0.8rem;
+}
+
+.dashboard-tab {
+    display: inline-flex;
+    min-height: 2.75rem;
+    align-items: center;
+    gap: 0.55rem;
+    border: 1px solid #d8e5df;
+    border-radius: 0.8rem;
+    background: #ffffff;
+    padding: 0.7rem 1rem;
+    color: #64748b;
+    font-size: 0.82rem;
+    font-weight: 800;
+    transition: border-color 0.2s ease, color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.dashboard-tab:hover,
+.dashboard-tab:focus-visible {
+    border-color: rgba(0, 87, 64, 0.45);
+    color: #005740;
+}
+
+.dashboard-tab:focus-visible {
+    outline: 3px solid rgba(0, 87, 64, 0.2);
+    outline-offset: 2px;
+}
+
+.dashboard-tab.active {
+    border-color: #005740;
+    background: #005740;
+    color: #ffffff;
+    box-shadow: 0 8px 18px rgba(0, 87, 64, 0.22);
+    transform: translateY(-1px);
+}
+
+.dashboard-tab span {
+    display: inline-flex;
+    min-width: 1.5rem;
+    height: 1.5rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: #e7f5f0;
+    padding: 0 0.4rem;
+    color: #005740;
+    font-size: 0.7rem;
+}
+
+.dashboard-tab.active span {
+    background: rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+}
+
+.dashboard-tab-panel {
+    min-height: 420px;
+}
+
+.room-usage-panel {
+    min-height: 520px;
+    background: #ffffff;
+}
+
+.room-usage-toolbar,
+.room-usage-filters {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    border-bottom: 1px solid #e5eee9;
+    padding: 1rem 1.1rem;
+}
+
+.room-usage-count {
+    border-radius: 999px;
+    background: #e7f5f0;
+    padding: .25rem .55rem;
+    color: #005740;
+    font-size: .68rem;
+    font-weight: 800;
+}
+
+.room-usage-week-actions {
+    display: inline-flex;
+    overflow: hidden;
+    border: 1px solid #d8e5df;
+    border-radius: .75rem;
+    background: #fff;
+}
+
+.room-usage-week-actions button {
+    min-width: 2.35rem;
+    min-height: 2.35rem;
+    border-right: 1px solid #d8e5df;
+    color: #005740;
+    font-size: 1.15rem;
+    font-weight: 900;
+    transition: background-color .2s ease;
+}
+
+.room-usage-week-actions button:last-child { border-right: 0; }
+.room-usage-week-actions button:hover,
+.room-usage-week-actions button:focus-visible { background: #edf8f4; outline: none; }
+.room-usage-week-actions .room-usage-today { padding: 0 .8rem; font-size: .72rem; }
+
+.room-usage-filters {
+    justify-content: flex-start;
+    background: #f8fbfa;
+    padding-top: .75rem;
+    padding-bottom: .75rem;
+}
+
+.room-usage-filters label { display: grid; min-width: 12rem; gap: .3rem; }
+.room-usage-filters label > span { color: #64748b; font-size: .62rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.room-usage-filters select,
+.room-usage-filters input {
+    height: 2.35rem;
+    border: 1px solid #d8e5df;
+    border-radius: .65rem;
+    background: #fff;
+    padding: 0 .75rem;
+    color: #1e293b;
+    font-size: .75rem;
+    outline: none;
+}
+.room-usage-filters select:focus,
+.room-usage-filters input:focus { border-color: #005740; box-shadow: 0 0 0 3px rgba(0,87,64,.1); }
+.room-usage-search { flex: 1; max-width: 21rem; }
+
+.room-usage-legend { display: flex; align-items: center; gap: .9rem; margin-left: auto; color: #64748b; font-size: .7rem; font-weight: 700; }
+.room-usage-legend span { display: inline-flex; align-items: center; gap: .35rem; }
+.room-usage-legend i { width: .75rem; height: .75rem; border: 1px solid #cbd5e1; border-radius: .2rem; }
+.room-usage-legend .is-scheduled { border-color: #75bca5; background: #bde7d8; }
+.room-usage-legend .is-vacant { background: #fff; }
+
+.room-usage-scroll {
+    max-height: 620px;
+    overflow: auto;
+    scrollbar-color: #9fb7ae #edf4f1;
+    scrollbar-width: thin;
+}
+
+.room-usage-scroll:focus-visible { outline: 3px solid rgba(0,87,64,.18); outline-offset: -3px; }
+.room-usage-content { position: relative; width: 100%; }
+.room-usage-building-grid,
+.room-usage-room-grid,
+.room-usage-day-grid { display: grid; }
+
+.room-usage-building-grid {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    min-height: 30px;
+    border-bottom: 1px solid #164d73;
+    background: #2878c7;
+}
+
+.room-usage-corner,
+.room-usage-building-band {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    border-right: 1px solid rgba(255,255,255,.4);
+    padding: .4rem .55rem;
+    color: #fff;
+    font-size: .68rem;
+    font-weight: 900;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+.room-usage-corner { grid-column: 1; background: #d99b22; color: #1f2937; }
+
+.room-usage-room-grid {
+    position: sticky;
+    top: 30px;
+    z-index: 19;
+    min-height: 52px;
+    border-bottom: 2px solid #174c72;
+    background: #3c89dd;
+}
+
+.room-usage-time-heading,
+.room-usage-room-heading {
+    display: grid;
+    align-content: center;
+    min-width: 0;
+    border-right: 1px solid #205f9d;
+    padding: .35rem .5rem;
+    color: #0f172a;
+    text-align: center;
+}
+.room-usage-time-heading { background: #fac858; font-size: .7rem; font-weight: 900; }
+.room-usage-room-heading { background: #4a91df; transition: background-color .2s ease; }
+.room-usage-room-heading:hover,
+.room-usage-room-heading:focus-visible { background: #71a8e6; outline: none; }
+.room-usage-room-heading strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .72rem; font-weight: 900; }
+.room-usage-room-heading span { overflow: hidden; margin-top: .15rem; color: #17354b; font-size: .6rem; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+
+.room-usage-day-grid { position: relative; }
+.room-usage-day-heading {
+    position: sticky;
+    left: 0;
+    z-index: 8;
+    grid-column: 1 / -1;
+    grid-row: 1;
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    border-top: 1px solid #b97d0f;
+    border-bottom: 1px solid #b97d0f;
+    background: #fac858;
+    padding: 0 .75rem;
+    color: #111827;
+    font-size: .72rem;
+    text-transform: uppercase;
+}
+.room-usage-day-heading span { color: #6b4a08; font-size: .62rem; font-weight: 800; }
+
+.room-usage-time-cell,
+.room-usage-vacant-cell {
+    border-right: 1px solid #ccd7d2;
+    border-bottom: 1px solid #dde5e1;
+    background: #fff;
+}
+.room-usage-time-cell {
+    position: sticky;
+    left: 0;
+    z-index: 7;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f8fbfa;
+    color: #475569;
+    font-size: .6rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+.room-usage-vacant-cell.is-hour { border-top: 1px solid #aebdb6; }
+
+.room-usage-schedule-block {
+    z-index: 10;
+    display: flex;
+    min-height: 0;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border: 1px solid #6bb59c;
+    background: #bde7d8;
+    padding: .2rem .3rem;
+    color: #073f31;
+    text-align: center;
+    box-shadow: inset 3px 0 #218267;
+    transition: filter .2s ease, transform .2s ease;
+}
+.room-usage-schedule-block:hover,
+.room-usage-schedule-block:focus-visible { z-index: 12; filter: saturate(1.15); outline: 2px solid #005740; outline-offset: -2px; }
+.room-usage-schedule-block strong { max-width: 100%; overflow: hidden; font-size: .66rem; font-weight: 900; line-height: 1.15; text-overflow: ellipsis; white-space: nowrap; }
+.room-usage-schedule-block span { margin-top: .1rem; font-size: .56rem; font-weight: 700; opacity: .75; }
+
+.room-usage-empty { display: grid; min-height: 320px; place-content: center; gap: .4rem; padding: 2rem; color: #64748b; text-align: center; }
+.room-usage-empty strong { color: #0f172a; font-size: .9rem; }
+.room-usage-empty span { font-size: .76rem; }
+
+.dashboard-tab-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    border-bottom: 1px solid #e5eee9;
+    padding: 1rem 1.1rem;
+}
+
+.available-room-list {
+    max-height: 458px;
+    overflow-y: auto;
+    padding: 0.35rem 1rem 1rem;
+}
+
+.available-room-row {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    border-bottom: 1px solid #edf2ef;
+    padding: 0.85rem 0.25rem;
+}
+
+.available-room-row:last-child {
+    border-bottom: 0;
+}
+
+.available-room-row:hover {
+    background: rgba(0, 87, 64, 0.035);
+}
+
+.available-room-icon {
+    display: grid;
+    width: 2.45rem;
+    height: 2.45rem;
+    flex: 0 0 auto;
+    place-items: center;
+    border-radius: 0.75rem;
+    background: #e7f5f0;
+    color: #005740;
+}
+
+.available-room-icon svg {
+    width: 1.1rem;
+    height: 1.1rem;
+}
+
+.available-room-details {
+    display: grid;
+    min-width: 9rem;
+    gap: 0.2rem;
+    color: #64748b;
+    font-size: 0.72rem;
+}
+
+.available-room-status {
+    display: inline-flex;
+    border-radius: 999px;
+    background: #e7f5f0;
+    padding: 0.3rem 0.65rem;
+    color: #005740;
+    font-size: 0.7rem;
+    font-weight: 800;
 }
 
 .dashboard-calendar-card {
@@ -1789,6 +2610,18 @@ onMounted(() => {
     padding: 0.55rem;
     transition: background-color 0.2s ease;
 }
+
+.managed-rooms-panel { background: #fff; }
+.managed-rooms-toolbar { border-bottom: 1px solid #e5eee9; background: #f8fbfa; padding: .85rem 1.1rem; }
+.managed-rooms-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; padding: 1rem; }
+.managed-room-card { display: flex; min-width: 0; align-items: center; gap: .8rem; border: 1px solid #e1e9e5; border-radius: .9rem; background: #fff; padding: .85rem; transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease; }
+.managed-room-card:hover { border-color: rgba(0,87,64,.28); box-shadow: 0 8px 20px rgba(33,53,47,.07); transform: translateY(-1px); }
+.managed-room-card-icon { display: grid; width: 2.4rem; height: 2.4rem; flex: 0 0 auto; place-items: center; border-radius: .7rem; background: #e7f5f0; color: #005740; }
+.managed-room-card-icon svg { width: 1.1rem; height: 1.1rem; }
+.managed-room-card-actions { display: flex; flex: 0 0 auto; gap: .4rem; }
+.managed-rooms-empty { grid-column: 1 / -1; display: grid; min-height: 220px; place-content: center; gap: .35rem; border: 1px dashed #d8e1dd; border-radius: .9rem; background: #f8fbfa; color: #64748b; text-align: center; }
+.managed-rooms-empty strong { color: #0f172a; font-size: .85rem; }
+.managed-rooms-empty span { font-size: .72rem; }
 
 .managed-room-row:hover {
     background: rgba(0, 87, 64, 0.045);
@@ -2076,83 +2909,188 @@ onMounted(() => {
     top: 1rem;
 }
 
-.room-mini-calendar {
-    margin-top: 1rem;
-    display: grid;
-    max-height: 280px;
-    gap: 0.65rem;
-    overflow-y: auto;
-    border: 1px solid #dfe8e3;
-    border-radius: 0.95rem;
-    background: #f8fbfa;
-    padding: 0.65rem;
+.room-schedule-calendar {
+    margin-bottom: 1rem;
 }
 
-.room-empty-calendar {
-    border: 1px dashed #cbd5e1;
-    border-radius: 0.8rem;
-    background: #ffffff;
-    padding: 1.5rem;
-    text-align: center;
-    color: #64748b;
-    font-size: 0.84rem;
+.room-calendar-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
 }
 
-.room-mini-day {
-    display: grid;
-    grid-template-columns: 72px minmax(0, 1fr);
-    gap: 0.7rem;
-}
-
-.room-mini-date {
-    border-radius: 0.8rem;
-    background: #005740;
-    padding: 0.65rem 0.5rem;
-    color: #ffffff;
-    text-align: center;
-}
-
-.room-mini-date span {
-    display: block;
-    color: rgba(255, 255, 255, 0.7);
+.room-calendar-eyebrow {
+    margin-bottom: 0.25rem;
+    color: #005740;
     font-size: 0.68rem;
-    font-weight: 800;
+    font-weight: 900;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
 }
 
-.room-mini-date strong {
-    display: block;
-    margin-top: 0.15rem;
-    font-size: 0.82rem;
+.room-calendar-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
 }
 
-.room-mini-events {
+.room-calendar-actions button {
     display: grid;
-    gap: 0.45rem;
-    min-width: 0;
-}
-
-.room-mini-event {
-    border-left: 3px solid #005740;
-    border-radius: 0.75rem;
+    min-width: 2.35rem;
+    height: 2.35rem;
+    place-items: center;
+    border: 1px solid #d7e2dd;
+    border-radius: 0.65rem;
     background: #ffffff;
-    padding: 0.55rem 0.65rem;
-    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04);
+    color: #005740;
+    font-size: 1.25rem;
+    font-weight: 900;
+    transition: border-color 0.2s ease, background-color 0.2s ease;
 }
 
-.room-mini-event span,
-.room-mini-event em {
+.room-calendar-actions button:hover,
+.room-calendar-actions button:focus-visible {
+    border-color: #005740;
+    background: #e8f2ee;
+}
+
+.room-calendar-actions .room-calendar-today {
+    padding: 0 0.8rem;
+    font-size: 0.72rem;
+}
+
+.room-calendar-scroll {
+    overflow-x: auto;
+    border: 1px solid #dfe8e3;
+    border-radius: 0.95rem;
+    background: #ffffff;
+}
+
+.room-calendar-weekdays,
+.room-calendar-grid {
+    min-width: 760px;
+}
+
+.room-calendar-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    border-bottom: 1px solid #dfe8e3;
+    background: #005740;
+}
+
+.room-calendar-weekdays span {
+    padding: 0.6rem;
+    color: rgba(255, 255, 255, 0.84);
+    font-size: 0.68rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+.room-calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.room-calendar-day {
+    min-height: 116px;
+    border-right: 1px solid #e5ece8;
+    border-bottom: 1px solid #e5ece8;
+    padding: 0.45rem;
+    background: #ffffff;
+}
+
+.room-calendar-day:nth-child(7n) {
+    border-right: 0;
+}
+
+.room-calendar-day:nth-last-child(-n + 7) {
+    border-bottom: 0;
+}
+
+.room-calendar-day.is-outside-month {
+    background: #f7f9f8;
+    opacity: 0.52;
+}
+
+.room-calendar-day.has-schedules {
+    background: #f5faf7;
+}
+
+.room-calendar-day.is-today {
+    box-shadow: inset 0 0 0 2px #d99b22;
+}
+
+.room-calendar-day-number {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: #334155;
+    font-size: 0.72rem;
+    font-weight: 800;
+}
+
+.room-calendar-day-number strong {
+    display: grid;
+    min-width: 1.25rem;
+    height: 1.25rem;
+    place-items: center;
+    border-radius: 999px;
+    background: #005740;
+    color: #ffffff;
+    font-size: 0.6rem;
+}
+
+.room-calendar-allocations {
+    display: grid;
+    gap: 0.3rem;
+    margin-top: 0.4rem;
+}
+
+.room-calendar-allocation {
+    overflow: hidden;
+    border-left: 3px solid #005740;
+    border-radius: 0.45rem;
+    background: #e0f1ea;
+    padding: 0.35rem 0.4rem;
+}
+
+.room-calendar-allocation span,
+.room-calendar-allocation strong,
+.room-calendar-allocation em {
     display: block;
-    color: #64748b;
-    font-size: 0.7rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.room-calendar-allocation span {
+    color: #236843;
+    font-size: 0.58rem;
+    font-weight: 800;
+}
+
+.room-calendar-allocation strong {
+    margin-top: 0.1rem;
+    color: #0f3f31;
+    font-size: 0.66rem;
+}
+
+.room-calendar-allocation em {
+    margin-top: 0.1rem;
+    color: #527067;
+    font-size: 0.56rem;
     font-style: normal;
+    text-transform: capitalize;
 }
 
-.room-mini-event strong {
-    display: block;
-    margin: 0.15rem 0;
-    color: #0f172a;
-    font-size: 0.82rem;
+.room-calendar-more {
+    color: #005740;
+    font-size: 0.62rem;
+    font-weight: 800;
 }
 
 .room-preview-field {
@@ -2343,6 +3281,28 @@ onMounted(() => {
         flex-direction: column;
     }
 
+    .dashboard-tab-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .room-usage-toolbar,
+    .room-usage-filters {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .room-usage-week-actions { align-self: flex-start; }
+    .room-usage-filters label,
+    .room-usage-search { width: 100%; max-width: none; }
+    .room-usage-legend { margin-left: 0; }
+
+    .managed-rooms-grid { grid-template-columns: 1fr; }
+
+    .available-room-details {
+        display: none;
+    }
+
     .calendar-month-grid,
     .calendar-weekdays {
         min-width: 760px;
@@ -2359,8 +3319,7 @@ onMounted(() => {
         grid-template-columns: 1fr;
     }
 
-    .room-edit-row,
-    .room-mini-day {
+    .room-edit-row {
         grid-template-columns: 1fr;
     }
 
@@ -2370,6 +3329,21 @@ onMounted(() => {
 
     .room-schedule-side {
         position: static;
+    }
+}
+
+@media (max-width: 520px) {
+    .dashboard-tabs { overflow-x: auto; }
+    .dashboard-tab { flex: 0 0 auto; }
+    .managed-room-card { align-items: flex-start; flex-wrap: wrap; }
+    .managed-room-card-actions { width: 100%; padding-left: 3.2rem; }
+
+    .available-room-status {
+        display: none;
+    }
+
+    .available-room-row {
+        gap: 0.6rem;
     }
 }
 </style>
