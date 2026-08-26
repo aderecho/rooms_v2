@@ -137,5 +137,9 @@ class DatabaseSeeder extends Seeder
         $this->command->info('Terms: ' . Term::count());
         $this->command->info('Schedules: ' . Schedule::count());
         $this->command->info('SAML Configurations: ' . SamlConfiguration::count());
+
+        $this->call([
+            ScheduleSeeder::class,
+        ]);
     }
 }

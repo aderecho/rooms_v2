@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\ScheduleImportController;
 use App\Http\Controllers\EquipmentController;
 use App\Http\Controllers\RoomController;
 use Illuminate\Support\Facades\Route;

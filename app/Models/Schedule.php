@@ -34,18 +34,43 @@ class Schedule extends Model
         'is_recurring',
         'recurrence_pattern',
         'term_id',
-        'cfic_id',
+        'import_log_id',    
+        'cfic_id',            
     ];
 
+    // changed
+    // protected $casts = [
+    //     'date' => 'date',
+    //     'start_time' => 'datetime:H:i',
+    //     'end_time' => 'datetime:H:i',
+    //     'equipment_needed' => 'array',
+    //     'additional_requirements' => 'array',
+    //     'recurrence_pattern' => 'array',
+    //     'is_recurring' => 'boolean',
+    // ];
     protected $casts = [
-        'date' => 'date',
-        'start_time' => 'datetime:H:i',
-        'end_time' => 'datetime:H:i',
-        'equipment_needed' => 'array',
-        'additional_requirements' => 'array',
-        'recurrence_pattern' => 'array',
-        'is_recurring' => 'boolean',
-    ];
+    'date' => 'date:Y-m-d',
+    'start_time' => 'datetime:H:i:s',
+    'end_time' => 'datetime:H:i:s',
+    'equipment_needed' => 'array',
+    'additional_requirements' => 'array',
+    'recurrence_pattern' => 'array',
+    'is_recurring' => 'boolean',
+];
+
+    // public function getStartTimeAttribute($value)
+    // {
+    //     return $value ? date('H:i:s', strtotime($value)) : null;
+    // }
+
+    // public function getEndTimeAttribute($value)
+    // {
+    //     return $value ? date('H:i:s', strtotime($value)) : null;
+    // }
+    // public function getDateAttribute($value)
+    // {
+    //     return $value ? date('Y-m-d', strtotime($value)) : null;
+    // }
 
     // Relationships
     public function room()
