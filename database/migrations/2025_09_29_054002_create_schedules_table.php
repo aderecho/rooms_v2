@@ -34,6 +34,7 @@ return new class extends Migration
             $table->boolean('is_recurring')->default(false);
             $table->json('recurrence_pattern')->nullable();
             $table->unsignedBigInteger('term_id')->nullable(); // Will be foreign key later
+            $table->unsignedBigInteger('import_log_id')->nullable();
             $table->string('cfic_id', 100)->nullable();
             $table->timestamps();
             // NO FOREIGN KEYS HERE - add later
