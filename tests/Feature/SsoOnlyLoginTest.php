@@ -12,6 +12,15 @@ test('login page exposes the Google sign in entry point', function () {
         );
 });
 
+test('application shell exposes the reservation favicon', function () {
+    $this->get(route('login'))
+        ->assertOk()
+        ->assertSee('rel="icon"', false)
+        ->assertSee('rel="apple-touch-icon"', false)
+        ->assertSee('image/favicon-64.png', false)
+        ->assertSee('image/apple-touch-icon.png', false);
+});
+
 test('manual password login endpoint is unavailable', function () {
     $this->post('/login', [
         'username' => 'manual-user',

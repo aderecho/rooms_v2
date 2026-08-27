@@ -7,6 +7,9 @@
 
     <title>{{ config('app.name', 'Laravel') }}</title>
 
+    <link rel="icon" type="image/png" sizes="64x64" href="{{ asset('image/favicon-64.png') }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('image/apple-touch-icon.png') }}">
+
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
 
