@@ -100,10 +100,17 @@ it('downloads valid CSV and Excel templates', function () {
         ->withSession(scheduleImportSession($admin))
         ->get(route('schedules.import.template.csv'));
     $csv->assertOk()->assertDownload('schedule-import-template.csv');
-    $csvLines = array_values(array_filter(preg_split('/\R/', trim($csv->streamedContent()))));
-    expect($csvLines)->toHaveCount(1)
+    $csvContent = $csv->streamedContent();
+    $csvLines = array_values(array_filter(preg_split('/\R/', trim($csvContent))));
+    $csvRows = array_map('str_getcsv', $csvLines);
+    expect($csvLines)->toHaveCount(3)
         ->and($csvLines[0])->toContain('room_id,room_name,event_title,event_type,date,start_time,end_time')
-        ->and($csvLines[0])->not->toContain('Actual Campus Room');
+        ->and($csvRows[1][1])->toBe('Actual Campus Room')
+        ->and($csvRows[1][2])->toBe('Faculty Meeting')
+        ->and($csvRows[1][4])->toBe('2026-08-27')
+        ->and($csvRows[2][1])->toBe('Actual Campus Room')
+        ->and($csvRows[2][2])->toBe('Recurring Class')
+        ->and($csvRows[2][4])->toBe('T-TH from June to May 10:am-11:am 2026-2027');
 
     $excel = $this->actingAs($admin)
         ->withSession(scheduleImportSession($admin))
@@ -111,21 +118,46 @@ it('downloads valid CSV and Excel templates', function () {
     $excel->assertOk()->assertDownload('schedule-import-template.xlsx');
 
     $workbook = IOFactory::load($excel->baseResponse->getFile()->getPathname());
-    expect($workbook->getSheetNames())->toBe(['Schedule Import', 'Examples - Do Not Import', 'Instructions'])
+    expect($workbook->getSheetNames())->toBe(['Schedule Import', 'Instructions'])
         ->and($workbook->getSheet(0)->getCell('A1')->getValue())->toBe('room_id')
         ->and($workbook->getSheet(0)->getCell('C1')->getValue())->toBe('event_title')
-        ->and($workbook->getSheet(0)->getHighestDataRow())->toBe(1)
-        ->and($workbook->getSheet(0)->getCell('B2')->getValue())->toBeNull()
-        ->and($workbook->getSheet(1)->getCell('A1')->getValue())->toBe('REFERENCE ONLY — DO NOT UPLOAD THESE ROWS')
-        ->and($workbook->getSheet(1)->getCell('B4')->getValue())->toBe('Actual Campus Room')
-        ->and($workbook->getSheet(1)->getCell('B5')->getValue())->toBe('Actual Campus Room')
-        ->and($workbook->getSheet(1)->getComment('E5')->getText()->getPlainText())->toContain('Tuesday and Thursday')
-        ->and($workbook->getSheet(2)->getCell('A1')->getValue())->toBe('Schedule Import Instructions')
-        ->and($workbook->getSheet(2)->getCell('A2')->getValue())->toContain('intentionally blank')
-        ->and($workbook->getSheet(2)->getCell('A13')->getValue())->toContain('does not update existing cfic_id')
-        ->and($workbook->getSheet(2)->getCell('A15')->getValue())->toBe('Recurring Schedule Breakdown')
-        ->and($workbook->getSheet(2)->getCell('C22')->getValue())->toBe('Enter this entire value in the date column');
+        ->and($workbook->getSheet(0)->getHighestDataRow())->toBe(3)
+        ->and($workbook->getSheet(0)->getCell('B2')->getValue())->toBe('Actual Campus Room')
+        ->and($workbook->getSheet(0)->getCell('B3')->getValue())->toBe('Actual Campus Room')
+        ->and($workbook->getSheet(0)->getComment('E3')->getText()->getPlainText())->toContain('Tuesday and Thursday')
+        ->and($workbook->getSheet(1)->getCell('A1')->getValue())->toBe('Schedule Import Instructions')
+        ->and($workbook->getSheet(1)->getCell('A2')->getValue())->toContain('headers unchanged')
+        ->and($workbook->getSheet(1)->getCell('A10')->getValue())->toBe('Recurring Schedule Breakdown')
+        ->and($workbook->getSheet(1)->getCell('C17')->getValue())->toBe('Enter this entire value in the date column');
     $workbook->disconnectWorksheets();
+
+    $this->actingAs($admin)
+        ->withSession(scheduleImportSession($admin))
+        ->post(route('schedules.import.preview'), [
+            'file' => UploadedFile::fake()->createWithContent('schedule-import-template.csv', $csvContent),
+        ])
+        ->assertOk()
+        ->assertJsonPath('summary.total_rows', 2)
+        ->assertJsonPath('summary.valid_rows', 2)
+        ->assertJsonPath('summary.invalid_rows', 0)
+        ->assertJsonPath('summary.schedule_occurrences', 105);
+
+    $this->actingAs($admin)
+        ->withSession(scheduleImportSession($admin))
+        ->post(route('schedules.import.preview'), [
+            'file' => new UploadedFile(
+                $excel->baseResponse->getFile()->getPathname(),
+                'schedule-import-template.xlsx',
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                null,
+                true,
+            ),
+        ])
+        ->assertOk()
+        ->assertJsonPath('summary.total_rows', 2)
+        ->assertJsonPath('summary.valid_rows', 2)
+        ->assertJsonPath('summary.invalid_rows', 0)
+        ->assertJsonPath('summary.schedule_occurrences', 105);
 });
 
 it('previews and imports a valid CSV file', function () {

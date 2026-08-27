@@ -2,7 +2,9 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\AuthSessionManager;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -19,13 +21,26 @@ class HandleInertiaRequests extends Middleware
         $sessionUser = $request->session()->get('user');
         $authUser = $request->user();
 
-        if (!$sessionUser && $authUser) {
+        if (! $sessionUser && $authUser) {
             $sessionUser = \App\Http\Controllers\LoginController::sessionPayload($authUser);
         }
+
+        $expiresAt = $request->session()->get(AuthSessionManager::EXPIRES_AT_KEY);
+        if ($sessionUser && ! is_numeric($expiresAt)) {
+            $expiresAt = app(AuthSessionManager::class)->start($request);
+        }
+        $durationMinutes = max(1, (int) config('auth_session.duration_minutes', 120));
+        $warningMinutes = max(1, (int) config('auth_session.warning_minutes', 5));
 
         return array_merge(parent::share($request), [
             'auth' => [
                 'user' => $sessionUser,
+                'session' => $sessionUser && is_numeric($expiresAt) ? [
+                    'expiresAt' => Carbon::createFromTimestamp((int) $expiresAt)->toIso8601String(),
+                    'serverTime' => now()->toIso8601String(),
+                    'durationMinutes' => $durationMinutes,
+                    'warningSeconds' => min($warningMinutes * 60, max(1, ($durationMinutes * 60) - 1)),
+                ] : null,
             ],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),

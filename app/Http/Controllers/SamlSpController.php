@@ -6,6 +6,7 @@ use App\Models\SamlAuditEvent;
 use App\Models\SamlConfiguration;
 use App\Models\SamlReplayRecord;
 use App\Models\UserAccount;
+use App\Services\AuthSessionManager;
 use DOMDocument;
 use DOMXPath;
 use Illuminate\Http\RedirectResponse;
@@ -32,7 +33,7 @@ class SamlSpController extends Controller
             ]);
         }
 
-        $requestId = '_' . Str::uuid()->toString();
+        $requestId = '_'.Str::uuid()->toString();
         $relayState = $request->query('RelayState', $configuration->default_relay_state ?: route('main.dashboard'));
 
         SamlReplayRecord::create([
@@ -57,7 +58,7 @@ class SamlSpController extends Controller
             'RelayState' => $relayState,
         ]);
 
-        return redirect()->away($configuration->sso_url . (str_contains($configuration->sso_url, '?') ? '&' : '?') . $query);
+        return redirect()->away($configuration->sso_url.(str_contains($configuration->sso_url, '?') ? '&' : '?').$query);
     }
 
     public function acs(Request $request): RedirectResponse
@@ -108,6 +109,7 @@ class SamlSpController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
         $request->session()->put('user', LoginController::sessionPayload($user));
+        app(AuthSessionManager::class)->start($request);
 
         $user->forceFill([
             'last_login_at' => now(),
@@ -142,6 +144,8 @@ class SamlSpController extends Controller
             'outcome' => 'success',
         ]);
 
+        app(AuthSessionManager::class)->end($request);
+
         return redirect()->route('login');
     }
 
@@ -173,7 +177,7 @@ XML;
         $xml = base64_decode($encoded, true);
         throw_if($xml === false, new \RuntimeException('Invalid SAMLResponse encoding.'));
 
-        $document = new DOMDocument();
+        $document = new DOMDocument;
         $loaded = @$document->loadXML($xml, LIBXML_NONET | LIBXML_NOERROR | LIBXML_NOWARNING);
         throw_unless($loaded, new \RuntimeException('Invalid SAMLResponse XML.'));
 
