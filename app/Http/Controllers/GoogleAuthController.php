@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\UserAccount;
+use App\Services\AuthSessionManager;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -57,6 +58,7 @@ class GoogleAuthController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
         $request->session()->put('user', LoginController::sessionPayload($user));
+        app(AuthSessionManager::class)->start($request);
 
         $user->forceFill([
             'last_login_at' => now(),

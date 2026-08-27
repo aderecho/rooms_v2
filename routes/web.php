@@ -29,10 +29,11 @@ Route::get('/login', function () {
         return redirect('/MainDashboard');
     }
 
-    return Inertia::render('Login');
+    return Inertia::render('Login', [
+        'googleLoginUrl' => route('auth.google.redirect'),
+    ]);
 })->name('login');
 
-Route::post('/login', [LoginController::class, 'login']);
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 Route::get('/auth/google', [GoogleAuthController::class, 'redirect'])
     ->middleware('throttle:10,1')
@@ -40,6 +41,9 @@ Route::get('/auth/google', [GoogleAuthController::class, 'redirect'])
 Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback'])
     ->middleware('throttle:10,1')
     ->name('auth.google.callback');
+Route::get('/api/auth/google/callback', [GoogleAuthController::class, 'callback'])
+    ->middleware('throttle:10,1')
+    ->name('auth.google.callback.api');
 
 Route::get('/saml2/metadata', SamlMetadataController::class)->name('saml.metadata');
 Route::get('/saml2/login', [SamlSpController::class, 'redirectToIdp'])->name('saml.login');

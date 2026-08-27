@@ -33,6 +33,21 @@ test('an active existing account can sign in with a verified google email', func
     $this->assertSame($user->id, session('user.id'));
 });
 
+test('the configured api callback path completes google sign in', function () {
+    $user = UserAccount::factory()->create([
+        'email' => 'api-callback@up.edu.ph',
+        'account_status' => 'active',
+    ]);
+
+    mockGoogleUser('API-CALLBACK@UP.EDU.PH', true);
+
+    $this->get(route('auth.google.callback.api'))
+        ->assertRedirect(route('main.dashboard'));
+
+    $this->assertAuthenticatedAs($user);
+    $this->assertSame($user->id, session('user.id'));
+});
+
 test('google sign in rejects an email without an existing account', function () {
     mockGoogleUser('unknown@up.edu.ph', true);
 

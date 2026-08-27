@@ -3,59 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Models\UserAccount;
+use App\Services\AuthSessionManager;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 
 class LoginController extends Controller
 {
-    public function login(Request $request)
-    {
-        if ($request->filled('SAMLResponse')) {
-            return app(SamlSpController::class)->acs($request);
-        }
-
-        $credentials = $request->validate([
-            'username' => 'required|string',
-            'password' => 'required|string',
-        ]);
-
-        $login = trim($credentials['username']);
-
-        $user = UserAccount::where('username', $login)
-            ->orWhere('email', $login)
-            ->first();
-
-        if (!$user || !Hash::check($credentials['password'], $user->password)) {
-            return back()->withErrors([
-                'username' => 'Invalid username or password.',
-            ]);
-        }
-
-        if ($user->account_status !== 'active') {
-            return back()->withErrors([
-                'username' => 'Your account is not active. Please contact an administrator.',
-            ]);
-        }
-
-        Auth::login($user);
-
-        $request->session()->put('user', $this->sessionPayload($user));
-
-        $user->forceFill([
-            'last_login_at' => now(),
-            'last_login_ip' => $request->ip(),
-        ])->save();
-
-        return redirect('/MainDashboard');
-    }
-
     public function logout(Request $request)
     {
-        Auth::logout();
-        $request->session()->forget('user');
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
+        app(AuthSessionManager::class)->end($request);
 
         return redirect('/login');
     }
