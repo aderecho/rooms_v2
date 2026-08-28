@@ -2,21 +2,21 @@
 
 namespace Database\Seeders;
 
-use App\Models\UserAccount;
+use App\Models\Building;
 use App\Models\College;
 use App\Models\Department;
-use App\Models\Building;
-use App\Models\RoomType;
-use App\Models\Room;
 use App\Models\Equipment;
-use App\Models\Term;
-use App\Models\Schedule;
+use App\Models\Room;
+use App\Models\RoomType;
 use App\Models\SamlAuditEvent;
 use App\Models\SamlConfiguration;
 use App\Models\SamlReplayRecord;
+use App\Models\Schedule;
+use App\Models\Term;
+use App\Models\UserAccount;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 
 class DatabaseSeeder extends Seeder
 {
@@ -58,13 +58,16 @@ class DatabaseSeeder extends Seeder
         // Create some faculty users
         $this->command->info('Creating faculty users...');
         UserAccount::factory()->count(5)->create([
-            'user_type' => 'faculty'
+            'user_type' => 'faculty',
         ]);
 
         // Create some staff users
         UserAccount::factory()->count(3)->create([
-            'user_type' => 'staff'
+            'user_type' => 'staff',
         ]);
+
+        // Create the student account used by the reservation workflow.
+        $this->call(StudentAccountSeeder::class);
 
         // Create colleges
         $this->command->info('Creating colleges...');
@@ -128,15 +131,15 @@ class DatabaseSeeder extends Seeder
         // Show counts
         $this->command->info('');
         $this->command->info('SEEDED DATA COUNTS:');
-        $this->command->info('Users: ' . UserAccount::count());
-        $this->command->info('Colleges: ' . College::count());
-        $this->command->info('Departments: ' . Department::count());
-        $this->command->info('Buildings: ' . Building::count());
-        $this->command->info('Rooms: ' . Room::count());
-        $this->command->info('Equipment: ' . Equipment::count());
-        $this->command->info('Terms: ' . Term::count());
-        $this->command->info('Schedules: ' . Schedule::count());
-        $this->command->info('SAML Configurations: ' . SamlConfiguration::count());
+        $this->command->info('Users: '.UserAccount::count());
+        $this->command->info('Colleges: '.College::count());
+        $this->command->info('Departments: '.Department::count());
+        $this->command->info('Buildings: '.Building::count());
+        $this->command->info('Rooms: '.Room::count());
+        $this->command->info('Equipment: '.Equipment::count());
+        $this->command->info('Terms: '.Term::count());
+        $this->command->info('Schedules: '.Schedule::count());
+        $this->command->info('SAML Configurations: '.SamlConfiguration::count());
 
         $this->call([
             ScheduleSeeder::class,

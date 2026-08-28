@@ -6,7 +6,7 @@
   >
     <div class="sidebar-brand">
       <span class="sidebar-logo-wrap"><img src="/image/uplogo.png" alt="University of the Philippines seal" /></span>
-      <strong>ROOMS ADMIN</strong>
+      <strong>{{ isStudent ? 'ROOM RESERVATIONS' : 'ROOMS ADMIN' }}</strong>
       <small>Campus Space Management</small>
     </div>
 
@@ -24,11 +24,15 @@
       >
         <span class="sidebar-icon" v-html="item.icon"></span>
         <span class="sidebar-label">{{ item.label }}</span>
+        <span
+          v-if="item.badge"
+          class="min-w-6 rounded-full bg-red-500 px-1.5 py-0.5 text-center text-[10px] font-extrabold text-white"
+        >{{ item.badge > 99 ? '99+' : item.badge }}</span>
       </Link>
     </nav>
 
-    <div class="sidebar-section-label">Administration</div>
-    <nav class="sidebar-nav text-sm">
+    <div v-if="!isStudent" class="sidebar-section-label">Administration</div>
+    <nav v-if="!isStudent" class="sidebar-nav text-sm">
       <button
         type="button"
         class="sidebar-item sidebar-toggle w-full text-left"
@@ -63,6 +67,12 @@
         </button>
       </form>
     </nav>
+    <form v-else class="sidebar-logout mt-auto" @submit.prevent="logout">
+      <button type="submit" class="sidebar-item w-full text-left">
+        <span class="sidebar-icon" v-html="icons.logout"></span>
+        <span class="sidebar-label">Logout</span>
+      </button>
+    </form>
   </aside>
 </template>
 
@@ -71,7 +81,7 @@ import { computed } from 'vue';
 import { ref } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 
-defineProps({
+const props = defineProps({
   sidebarOpen: {
     type: Boolean,
     default: true,
@@ -85,6 +95,10 @@ defineProps({
 const page = usePage();
 const currentPath = computed(() => page.url.split(/[?#]/)[0]);
 const settingsOpen = ref(['/SamlIntegration'].includes(currentPath.value));
+const currentUser = computed(() => props.user || page.props.auth?.user || {});
+const isStudent = computed(() => String(currentUser.value?.role || '').toLowerCase() === 'student');
+const isAdmin = computed(() => String(currentUser.value?.role || '').toLowerCase() === 'admin');
+const pendingReservationCount = computed(() => Number(page.props.reservationNotifications?.pendingAdminCount || 0));
 
 const isActive = (paths) => paths.includes(currentPath.value);
 
@@ -94,6 +108,7 @@ const icons = {
   rooms: '<svg viewBox="0 0 24 24" fill="none"><path d="M4 20V8l8-4 8 4v12H4Z" stroke="currentColor" stroke-width="1.7"/><path d="M9 20v-6h6v6" stroke="currentColor" stroke-width="1.7"/></svg>',
   equipment: '<svg viewBox="0 0 24 24" fill="none"><path d="M6 7h12v14H6V7Z" stroke="currentColor" stroke-width="1.7"/><path d="M9 7V4h6v3M9 11h6M9 15h6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>',
   calendar: '<svg viewBox="0 0 24 24" fill="none"><path d="M7 3v4M17 3v4M4 9h16M6 5h12a2 2 0 0 1 2 2v12H4V7a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="1.7"/></svg>',
+  request: '<svg viewBox="0 0 24 24" fill="none"><path d="M6 3h9l3 3v15H6V3Z" stroke="currentColor" stroke-width="1.7"/><path d="M9 11h6M9 15h6M9 7h3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>',
   upload: '<svg viewBox="0 0 24 24" fill="none"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 14v5h14v-5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   report: '<svg viewBox="0 0 24 24" fill="none"><path d="M6 3h9l4 4v14H6V3Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M15 3v5h4M9 12h7M9 16h7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>',
   analytics: '<svg viewBox="0 0 24 24" fill="none"><path d="M5 19V9m7 10V5m7 14v-7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>',
@@ -102,7 +117,14 @@ const icons = {
   logout: '<svg viewBox="0 0 24 24" fill="none"><path d="M10 6H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h4M15 8l4 4-4 4M19 12H9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
 };
 
-const primaryItems = computed(() => [
+const adminItems = computed(() => [
+  {
+    label: 'Reservation Requests',
+    href: '/ReservationRequests',
+    icon: icons.request,
+    active: currentPath.value.startsWith('/ReservationRequests'),
+    badge: pendingReservationCount.value,
+  },
   {
     label: 'Dashboard',
     href: '/MainDashboard',
@@ -146,6 +168,19 @@ const primaryItems = computed(() => [
     active: isActive(['/UserAccountPage']),
   },
 ]);
+
+const primaryItems = computed(() => {
+  if (isStudent.value) {
+    return [{
+      label: 'My Reservations',
+      href: '/MyReservations',
+      icon: icons.request,
+      active: currentPath.value.startsWith('/MyReservations'),
+    }];
+  }
+
+  return adminItems.value.filter((item) => isAdmin.value || item.label !== 'Reservation Requests');
+});
 
 const logout = () => {
   router.post('/logout');

@@ -25,12 +25,12 @@ class Room extends Model
         'status',
         'notes',
         'description',
-        'equipments'
+        'equipments',
     ];
 
     protected $casts = [
         'facilities' => 'array',
-        'equipments' => 'array' // Add this cast
+        'equipments' => 'array', // Add this cast
     ];
 
     // Relationships
@@ -64,6 +64,11 @@ class Room extends Model
         return $this->hasMany(Schedule::class);
     }
 
+    public function reservationRequests()
+    {
+        return $this->hasMany(ReservationRequest::class);
+    }
+
     // New method to get room utilization statistics
     public function getUtilizationStats()
     {
@@ -80,6 +85,7 @@ class Room extends Model
     public function getFullRoomAttribute()
     {
         $building = $this->building ? $this->building->building_name : 'No Building';
+
         return "{$building} - {$this->room_name} ({$this->room_code})";
     }
 

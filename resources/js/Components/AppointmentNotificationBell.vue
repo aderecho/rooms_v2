@@ -1,11 +1,13 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import axios from 'axios';
-import { router } from '@inertiajs/vue3';
+import { router, usePage } from '@inertiajs/vue3';
 import { isFinalAppointmentStatus, getAppointmentStatusLabel } from '@/utils/scheduleStatus';
 import StatusBadge from '@/Components/ScheduleModal/StatusBadge.vue';
+import { notifyDialog } from '@/Composables/useAppDialog.js';
 
 const panelOpen = ref(false);
+const page = usePage();
 const loading = ref(false);
 const notifications = ref([]);
 const unreadCount = ref(0);
@@ -15,6 +17,7 @@ const successToast = ref({ visible: false, message: '' });
 const clearConfirm = ref({ visible: false, loading: false });
 let pollTimer = null;
 let successToastTimer = null;
+let realtimeChannel = null;
 
 const showStatusSuccess = (message) => {
     successToast.value = { visible: true, message };
@@ -124,7 +127,10 @@ const confirmClearAll = async () => {
         clearConfirm.value.visible = false;
     } catch (err) {
         console.error('Failed to clear notifications:', err);
-        alert(err.response?.data?.message || 'Failed to clear notifications.');
+        notifyDialog(err.response?.data?.message || 'Failed to clear notifications.', {
+            title: 'Unable to clear notifications',
+            variant: 'danger',
+        });
     } finally {
         clearConfirm.value.loading = false;
     }
@@ -145,7 +151,10 @@ const updateAppointmentStatus = async (notification, status) => {
         showStatusSuccess(`Appointment status updated to ${getAppointmentStatusLabel(status)}.`);
     } catch (err) {
         console.error('Failed to update appointment status:', err);
-        alert(err.response?.data?.message || 'Failed to update status.');
+        notifyDialog(err.response?.data?.message || 'Failed to update status.', {
+            title: 'Status update failed',
+            variant: 'danger',
+        });
     } finally {
         statusUpdateLoadingId.value = null;
     }
@@ -181,6 +190,11 @@ const openNotificationAppointment = async (notification) => {
     await markAsRead(notification);
     closePanel();
 
+    if (notification.action_url) {
+        router.visit(notification.action_url);
+        return;
+    }
+
     if (!notification.schedule_id) return;
 
     const targetUrl = `/Schedule?appointment=${notification.schedule_id}`;
@@ -201,6 +215,13 @@ const handleRefreshEvent = () => {
 onMounted(() => {
     fetchNotifications();
     pollTimer = window.setInterval(fetchNotifications, 15000);
+
+    const userId = page.props.auth?.user?.id;
+    if (window.Echo && userId) {
+        realtimeChannel = window.Echo.private(`users.${userId}`)
+            .listen('.schedule-notification.created', fetchNotifications);
+    }
+
     window.addEventListener('appointment-notifications:refresh', handleRefreshEvent);
     window.addEventListener('appointment-status:success', onStatusSuccess);
 });
@@ -208,6 +229,10 @@ onMounted(() => {
 onUnmounted(() => {
     if (pollTimer) window.clearInterval(pollTimer);
     if (successToastTimer) window.clearTimeout(successToastTimer);
+    if (realtimeChannel) {
+        window.Echo.leave(`users.${page.props.auth?.user?.id}`);
+        realtimeChannel = null;
+    }
     window.removeEventListener('appointment-notifications:refresh', handleRefreshEvent);
     window.removeEventListener('appointment-status:success', onStatusSuccess);
 });
@@ -228,7 +253,7 @@ const hasNotifications = computed(() => notifications.value.length > 0);
         <button
             type="button"
             class="relative grid h-11 w-11 place-items-center rounded-[0.9rem] bg-white/95 text-[#005740] transition hover:-translate-y-0.5 hover:bg-white"
-            title="Appointment notifications"
+            title="Notifications"
             @click="togglePanel"
         >
             <svg xmlns="http://www.w3.org/2000/svg" class="h-[1.1rem] w-[1.1rem] text-current" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -250,7 +275,7 @@ const hasNotifications = computed(() => notifications.value.length > 0);
             <div class="absolute right-4 top-16 w-[28rem] max-w-[calc(100vw-2rem)] bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden">
                 <div class="px-4 py-3 bg-[#005740] text-white">
                     <div class="flex items-center justify-between gap-2">
-                        <h3 class="text-base font-semibold">Appointment Notifications</h3>
+                        <h3 class="text-base font-semibold">Notifications</h3>
                         <div class="flex items-center gap-2">
                             <span
                                 class="text-xs px-2 py-1 rounded-full flex items-center gap-1.5"
@@ -302,7 +327,12 @@ const hasNotifications = computed(() => notifications.value.length > 0);
                             </p>
                             <div class="flex items-center gap-2 shrink-0">
                                 <StatusBadge
-                                    v-if="notification.type === 'booking_confirmation'"
+                                    v-if="notification.reservation_request?.status"
+                                    :status="notification.reservation_request.status"
+                                    size="sm"
+                                />
+                                <StatusBadge
+                                    v-else-if="notification.type === 'booking_confirmation'"
                                     status="pending"
                                     size="sm"
                                 />
@@ -328,6 +358,20 @@ const hasNotifications = computed(() => notifications.value.length > 0);
                                 <span class="font-semibold">Time</span>:
                                 {{ formatTime(notification.schedule.start_time) }}
                                 <span v-if="notification.schedule.end_time">- {{ formatTime(notification.schedule.end_time) }}</span>
+                            </p>
+                        </div>
+
+                        <div v-if="notification.reservation_request" class="mt-2 space-y-1 text-xs text-gray-700">
+                            <p v-if="notification.reservation_request.student"><span class="font-semibold">Student</span>: {{ notification.reservation_request.student }}</p>
+                            <p><span class="font-semibold">Room</span>: {{ notification.reservation_request.room }}</p>
+                            <p><span class="font-semibold">Date</span>: {{ formatDate(notification.reservation_request.date) }}</p>
+                            <p>
+                                <span class="font-semibold">Time</span>:
+                                {{ formatTime(notification.reservation_request.start_time) }}–{{ formatTime(notification.reservation_request.end_time) }}
+                            </p>
+                            <p><span class="font-semibold">Purpose</span>: {{ notification.reservation_request.purpose }}</p>
+                            <p v-if="notification.reservation_request.admin_response" class="rounded bg-red-50 p-2 text-red-800">
+                                <span class="font-semibold">Admin response</span>: {{ notification.reservation_request.admin_response }}
                             </p>
                         </div>
 

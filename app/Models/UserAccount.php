@@ -3,14 +3,13 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
 class UserAccount extends Authenticatable
 {
-    use HasFactory, SoftDeletes, Notifiable;
+    use HasFactory, Notifiable, SoftDeletes;
 
     protected $table = 'user_accounts';
 
@@ -101,5 +100,15 @@ class UserAccount extends Authenticatable
     public function requestedSchedules()
     {
         return $this->hasMany(Schedule::class, 'requester_id');
+    }
+
+    public function reservationRequests()
+    {
+        return $this->hasMany(ReservationRequest::class, 'student_id');
+    }
+
+    public function reviewedReservationRequests()
+    {
+        return $this->hasMany(ReservationRequest::class, 'reviewed_by');
     }
 }

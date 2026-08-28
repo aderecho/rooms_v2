@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Services\AuthSessionManager;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -31,6 +32,9 @@ class HandleInertiaRequests extends Middleware
         }
         $durationMinutes = max(1, (int) config('auth_session.duration_minutes', 120));
         $warningMinutes = max(1, (int) config('auth_session.warning_minutes', 5));
+        $pendingReservationRequests = $authUser?->user_type === 'admin' && Schema::hasTable('reservation_requests')
+            ? \App\Models\ReservationRequest::query()->where('status', 'pending')->count()
+            : 0;
 
         return array_merge(parent::share($request), [
             'auth' => [
@@ -45,6 +49,9 @@ class HandleInertiaRequests extends Middleware
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
+            ],
+            'reservationNotifications' => [
+                'pendingAdminCount' => $pendingReservationRequests,
             ],
         ]);
     }

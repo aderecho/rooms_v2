@@ -6,6 +6,7 @@ use App\Models\Building;
 use App\Models\College;
 use App\Models\Department;
 use App\Models\Equipment;
+use App\Models\ReservationRequest;
 use App\Models\Room;
 use App\Models\RoomType;
 use App\Models\Schedule;
@@ -20,8 +21,12 @@ class MainDashboardController extends Controller
         private readonly RoomAvailabilityService $roomAvailability,
     ) {}
 
-    public function index()
+    public function index(Request $request)
     {
+        if ($request->user()?->user_type === 'student') {
+            return redirect()->route('student.reservations.index');
+        }
+
         // Get statistics for dashboard cards - DYNAMIC COUNTS FROM DATABASE
         $totalAccounts = UserAccount::count(); // Count all user accounts
         $totalDepartments = Department::count(); // Count all departments
@@ -165,6 +170,7 @@ class MainDashboardController extends Controller
 
         // Get pending schedules count
         $pendingSchedulesCount = Schedule::where('status', 'pending')->count();
+        $pendingReservationRequestsCount = ReservationRequest::where('status', 'pending')->count();
 
         $calendarSchedules = Schedule::with(['room.college', 'room.building', 'faculty'])
             ->whereBetween('date', [$calendarStart->format('Y-m-d'), $calendarEnd->format('Y-m-d')])
@@ -224,6 +230,7 @@ class MainDashboardController extends Controller
             'totalEquipment' => $totalEquipment,
             'todaySchedules' => $todaySchedulesCount,
             'pendingSchedules' => $pendingSchedulesCount,
+            'pendingReservationRequests' => $pendingReservationRequestsCount,
             'rooms' => $rooms,
             'allRooms' => $allRooms,
             'equipmentStats' => $equipmentStats,

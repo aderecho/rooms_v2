@@ -146,10 +146,14 @@ class ScheduleImportService
     private function readRecords(UploadedFile $file): array
     {
         $extension = strtolower($file->getClientOriginalExtension());
+
+        if ($extension === 'csv') {
+            return $this->readCsvRecords($file);
+        }
+
         $readerType = match ($extension) {
             'xlsx' => 'Xlsx',
             'xls' => 'Xls',
-            'csv' => 'Csv',
             default => throw new RuntimeException('Unsupported file type. Upload a CSV, XLSX, or XLS file.'),
         };
 
@@ -200,6 +204,68 @@ class ScheduleImportService
         }
 
         $spreadsheet->disconnectWorksheets();
+
+        return $records;
+    }
+
+    private function readCsvRecords(UploadedFile $file): array
+    {
+        $stream = fopen($file->getRealPath(), 'r');
+
+        if ($stream === false) {
+            throw new RuntimeException('The CSV file could not be opened.');
+        }
+
+        try {
+            $rawHeaders = fgetcsv($stream, null, ',', '"', '');
+
+            if ($rawHeaders === false) {
+                throw new RuntimeException('The CSV file does not contain a header row.');
+            }
+
+            $headers = array_map(fn ($header) => $this->normalizeHeader((string) $header), $rawHeaders);
+            $missingHeaders = array_values(array_diff(self::REQUIRED_HEADERS, $headers));
+
+            if ($missingHeaders !== []) {
+                throw new RuntimeException('Missing required columns: '.implode(', ', $missingHeaders).'.');
+            }
+
+            $records = [];
+            $rowNumber = 1;
+
+            while (($row = fgetcsv($stream, null, ',', '"', '')) !== false) {
+                $rowNumber++;
+                $values = [];
+
+                foreach ($headers as $columnIndex => $header) {
+                    if ($header === '') {
+                        continue;
+                    }
+
+                    $value = $row[$columnIndex] ?? null;
+                    $values[$header] = is_string($value) ? trim($value) : $value;
+                }
+
+                if (collect($values)->filter(fn ($value) => $value !== null && $value !== '')->isEmpty()) {
+                    continue;
+                }
+
+                $records[] = [
+                    'row_number' => $rowNumber,
+                    'data' => $values,
+                ];
+
+                if (count($records) > self::MAX_ROWS) {
+                    throw new RuntimeException('The file exceeds the maximum of '.self::MAX_ROWS.' schedule rows.');
+                }
+            }
+        } finally {
+            fclose($stream);
+        }
+
+        if ($records === []) {
+            throw new RuntimeException('The spreadsheet does not contain any schedule rows.');
+        }
 
         return $records;
     }

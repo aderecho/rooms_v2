@@ -6,6 +6,7 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createApp, Fragment, h } from 'vue';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
 import SessionExpirationMonitor from '@/Components/SessionExpirationMonitor.vue';
+import AppDialogHost from '@/Components/AppDialogHost.vue';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
@@ -21,6 +22,7 @@ createInertiaApp({
             render: () => h(Fragment, null, [
                 h(App, props),
                 h(SessionExpirationMonitor),
+                h(AppDialogHost),
             ]),
         })
             .use(plugin)

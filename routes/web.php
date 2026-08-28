@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AdminReservationRequestController;
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\BuildingController;
 use App\Http\Controllers\CollegeController;
@@ -18,6 +19,7 @@ use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\ScheduleImportController;
 use App\Http\Controllers\ScheduleNotificationController;
 use App\Http\Controllers\ScheduleReportController;
+use App\Http\Controllers\StudentReservationController;
 use App\Http\Controllers\UserAccountController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -67,6 +69,26 @@ Route::middleware(['auth.session'])->group(function () {
     Route::get('/api/dashboard/stats', [DashboardController::class, 'getStats']);
     Route::get('/api/dashboard/rooms', [DashboardController::class, 'getRooms']);
     Route::get('/api/dashboard/search', [DashboardController::class, 'search']);
+
+    // Student room reservation requests
+    Route::get('/MyReservations', [StudentReservationController::class, 'index'])
+        ->name('student.reservations.index');
+    Route::get('/MyReservations/{reservationRequest}', [StudentReservationController::class, 'show'])
+        ->name('student.reservations.show');
+    Route::post('/MyReservations', [StudentReservationController::class, 'store'])
+        ->name('student.reservations.store');
+    Route::get('/api/reservations/availability', [StudentReservationController::class, 'availability'])
+        ->name('student.reservations.availability');
+
+    // Administrator reservation request management
+    Route::get('/ReservationRequests', [AdminReservationRequestController::class, 'index'])
+        ->name('admin.reservation-requests.index');
+    Route::get('/ReservationRequests/{reservationRequest}', [AdminReservationRequestController::class, 'show'])
+        ->name('admin.reservation-requests.show');
+    Route::patch('/ReservationRequests/{reservationRequest}/approve', [AdminReservationRequestController::class, 'approve'])
+        ->name('admin.reservation-requests.approve');
+    Route::patch('/ReservationRequests/{reservationRequest}/reject', [AdminReservationRequestController::class, 'reject'])
+        ->name('admin.reservation-requests.reject');
 
     // Building Management
     Route::resource('BuildingDashboard', BuildingController::class)

@@ -23,6 +23,7 @@ import {
     GLOBAL_DEMO_EQUIPMENT_QUANTITIES,
 } from '@/data/demoRoomEquipment.js';
 import { getAppointmentStatusLabel } from '@/utils/scheduleStatus';
+import { notifyDialog } from '@/Composables/useAppDialog.js';
 
 const props = defineProps({
     schedules: { type: Array, default: () => [] },
@@ -385,7 +386,10 @@ const handleStatusUpdate = async ({ event, status, onComplete, onError }) => {
         onComplete?.();
     } catch (err) {
         console.error('Failed to update appointment status:', err);
-        alert(err.response?.data?.message || 'Failed to update status.');
+        notifyDialog(err.response?.data?.message || 'Failed to update status.', {
+            title: 'Status update failed',
+            variant: 'danger',
+        });
         onError?.();
     }
 };
@@ -573,7 +577,7 @@ const handleAppointmentSuccess = async (data) => {
         const msg = err.response?.data?.message
             || (err.response?.data?.errors && Object.values(err.response.data.errors).flat().join('\n'))
             || 'Failed to save appointment. Please check the form and try again.';
-        alert(msg);
+        notifyDialog(msg, { title: 'Unable to save appointment', variant: 'danger' });
     }
 };
 

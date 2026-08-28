@@ -5,6 +5,7 @@ import ClassForm from './ClassForm.vue';
 import MeetingForm from './MeetingForm.vue';
 import EventForm from './EventForm.vue';
 import OtherActivityForm from './OtherActivityForm.vue';
+import { notifyDialog } from '@/Composables/useAppDialog.js';
 
 const props = defineProps({
     isVisible: Boolean,
@@ -439,12 +440,15 @@ const closeModal = () => emit('close');
 
 const submitForm = () => {
     if (!String(appointmentForm.room || '').trim()) {
-        alert('Please type or select a room.');
+        notifyDialog('Please type or select a room.', { title: 'Room required', variant: 'warning' });
         return;
     }
 
     if (!isEndTimeValid.value) {
-        alert('End time must be after start time. Please adjust the times.');
+        notifyDialog('End time must be after start time. Please adjust the times.', {
+            title: 'Invalid time range',
+            variant: 'warning',
+        });
         return;
     }
 

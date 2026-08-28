@@ -3,6 +3,7 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import Breadcrumbs from '@/Components/Breadcrumbs.vue';
 import axios from 'axios';
 import { computed, reactive, ref } from 'vue';
+import { confirmDialog } from '@/Composables/useAppDialog.js';
 
 const props = defineProps({
   configurations: { type: Array, default: () => [] },
@@ -141,7 +142,13 @@ const saveConfiguration = async () => {
 };
 
 const deleteConfiguration = async (configuration) => {
-  if (!window.confirm(`Delete ${configuration.name}?`)) {
+  const confirmed = await confirmDialog(`Delete ${configuration.name}?`, {
+    title: 'Delete SAML configuration',
+    variant: 'danger',
+    confirmLabel: 'Delete configuration',
+  });
+
+  if (!confirmed) {
     return;
   }
 
