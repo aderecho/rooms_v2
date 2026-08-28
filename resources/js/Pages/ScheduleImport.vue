@@ -143,14 +143,30 @@ const statusClass = (status) => status === 'valid' ? 'is-valid' : 'is-invalid';
 
 const formatDate = (value) => {
     if (!value) return '';
+
+    const date = new Date(`${value}T00:00:00Z`);
+
+    if (Number.isNaN(date.getTime())) return value;
+
     return new Intl.DateTimeFormat('en-PH', {
         month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC',
-    }).format(new Date(`${value}T00:00:00Z`));
+    }).format(date);
 };
 
 const formatTime = (value) => {
     if (!value) return '';
+
     const [hours, minutes] = value.split(':').map(Number);
+
+    if (
+        !Number.isInteger(hours)
+        || !Number.isInteger(minutes)
+        || hours < 0
+        || hours > 23
+        || minutes < 0
+        || minutes > 59
+    ) return value;
+
     return new Intl.DateTimeFormat('en-PH', {
         hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'UTC',
     }).format(new Date(Date.UTC(2000, 0, 1, hours, minutes)));

@@ -8,6 +8,7 @@ import {
     faTag,
     faCalendarDay,
 } from '@fortawesome/free-solid-svg-icons';
+import { notifyDialog } from '@/Composables/useAppDialog.js';
 
 const props = defineProps({
     isVisible: Boolean,
@@ -94,7 +95,10 @@ const onSave = () => {
     }
     if (!room.value) return;
     if (endTime.value <= startTime.value) {
-        alert('End time must be after start time.');
+        notifyDialog('End time must be after start time.', {
+            title: 'Invalid time range',
+            variant: 'warning',
+        });
         return;
     }
 

@@ -5,6 +5,7 @@ import IconButton from '@/Components/IconButton.vue';
 import MessageFunction from '@/Components/MessageFunction.vue';
 import Navbar from '@/Components/Navbar.vue';
 import Sidebar from '@/Components/Sidebar.vue';
+import { confirmDialog } from '@/Composables/useAppDialog.js';
 
 const props = defineProps({
     totalAccounts: { type: Number, default: 0 },
@@ -122,6 +123,12 @@ const filteredRooms = computed(() => {
 });
 
 const stats = computed(() => [
+    {
+        label: 'Pending Requests',
+        value: Number(page.props.pendingReservationRequests || 0),
+        note: 'Student requests awaiting review',
+        target: '/ReservationRequests?status=pending',
+    },
     {
         label: 'Total Rooms',
         value: counts.value.totalRooms,
@@ -674,8 +681,13 @@ const handleEditRoom = (room) => {
     triggerToast('edit', { message: `Room "${room?.room_name || 'Unnamed'}" updated successfully!` });
 };
 
-const handleDeleteRoom = (room) => {
-    if (confirm('Are you sure you want to delete this room record?')) {
+const handleDeleteRoom = async (room) => {
+    const confirmed = await confirmDialog('Are you sure you want to delete this room record?', {
+        title: 'Delete room record',
+        variant: 'danger',
+        confirmLabel: 'Delete room',
+    });
+    if (confirmed) {
         triggerToast('delete', { name: room?.room_name || 'Room' });
     }
 };
@@ -892,7 +904,7 @@ onMounted(() => {
                     <div><span class="app-breadcrumb">University of the Philippines Cebu</span><h1 class="app-page-title">Dashboard</h1></div>
                 </header>
 
-                <section class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:gap-4">
+                <section class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5 2xl:gap-4">
                     <article
                         v-for="item in stats"
                         :key="item.label"

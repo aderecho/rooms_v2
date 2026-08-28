@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Schedule;
 use App\Models\ScheduleNotification;
 use App\Services\ScheduleNotificationService;
 use Illuminate\Http\Request;
@@ -16,12 +15,12 @@ class ScheduleNotificationController extends Controller
     public function index(Request $request)
     {
         $user = $this->notificationService->resolveCurrentUser($request);
-        if (!$user) {
+        if (! $user) {
             return response()->json(['success' => false, 'message' => 'Unauthorized.'], 401);
         }
 
         $notifications = ScheduleNotification::query()
-            ->with(['schedule.room'])
+            ->with(['schedule.room', 'reservationRequest.room', 'reservationRequest.student'])
             ->where('user_id', $user->id)
             ->orderByDesc('created_at')
             ->limit(50)
@@ -44,7 +43,7 @@ class ScheduleNotificationController extends Controller
     public function markRead(Request $request, ScheduleNotification $notification)
     {
         $user = $this->notificationService->resolveCurrentUser($request);
-        if (!$user || $notification->user_id !== $user->id) {
+        if (! $user || $notification->user_id !== $user->id) {
             return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
         }
 
@@ -56,7 +55,7 @@ class ScheduleNotificationController extends Controller
     public function markAllRead(Request $request)
     {
         $user = $this->notificationService->resolveCurrentUser($request);
-        if (!$user) {
+        if (! $user) {
             return response()->json(['success' => false, 'message' => 'Unauthorized.'], 401);
         }
 
@@ -71,7 +70,7 @@ class ScheduleNotificationController extends Controller
     public function markAllUnread(Request $request)
     {
         $user = $this->notificationService->resolveCurrentUser($request);
-        if (!$user) {
+        if (! $user) {
             return response()->json(['success' => false, 'message' => 'Unauthorized.'], 401);
         }
 
@@ -86,7 +85,7 @@ class ScheduleNotificationController extends Controller
     public function clearAll(Request $request)
     {
         $user = $this->notificationService->resolveCurrentUser($request);
-        if (!$user) {
+        if (! $user) {
             return response()->json(['success' => false, 'message' => 'Unauthorized.'], 401);
         }
 
@@ -101,13 +100,21 @@ class ScheduleNotificationController extends Controller
     {
         $schedule = $notification->schedule;
         $roomName = $schedule?->room?->room_name ?? $schedule?->room?->room_code ?? 'N/A';
+        $reservation = $notification->reservationRequest;
+        $reservationRoom = $reservation?->room?->room_name ?? $reservation?->room?->room_code ?? 'N/A';
+        $studentName = $reservation
+            ? (trim("{$reservation->student?->first_name} {$reservation->student?->last_name}")
+                ?: ($reservation->student?->username ?? 'Student'))
+            : null;
 
         return [
             'id' => $notification->id,
             'schedule_id' => $notification->schedule_id,
+            'reservation_request_id' => $notification->reservation_request_id,
             'type' => $notification->type,
             'title' => $notification->title,
             'message' => $notification->message,
+            'action_url' => $notification->action_url,
             'read_at' => $notification->read_at,
             'created_at' => $notification->created_at,
             'schedule' => $schedule ? [
@@ -118,6 +125,17 @@ class ScheduleNotificationController extends Controller
                 'date' => optional($schedule->date)->format('Y-m-d'),
                 'start_time' => $schedule->start_time,
                 'end_time' => $schedule->end_time,
+            ] : null,
+            'reservation_request' => $reservation ? [
+                'id' => $reservation->id,
+                'status' => $reservation->status,
+                'student' => $studentName,
+                'room' => $reservationRoom,
+                'date' => optional($reservation->reservation_date)->format('Y-m-d'),
+                'start_time' => $reservation->start_time,
+                'end_time' => $reservation->end_time,
+                'purpose' => $reservation->purpose,
+                'admin_response' => $reservation->admin_response,
             ] : null,
         ];
     }
