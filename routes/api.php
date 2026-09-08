@@ -18,6 +18,7 @@ Route::prefix('equipment')->group(function () {
 
 
 Route::prefix('v1')->group(function () {
+    Route::get('/calendar/schedules', [\App\Http\Controllers\API\CalendarScheduleController::class, 'index']);
     Route::get('/room/list', [RoomController::class, 'apiIndex']);
     Route::get('/room/list/{id}', [RoomController::class, 'apiShow']);
     Route::post('/room/schedule', [\App\Http\Controllers\API\RoomController::class, 'createSchedule']);
