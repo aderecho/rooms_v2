@@ -1,4 +1,5 @@
 <script setup>
+import ModalDialog from '@/Components/ModalDialog.vue'
 import { computed, ref } from 'vue';
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
 import { faTag, faLock, faClock } from '@fortawesome/free-solid-svg-icons';
@@ -364,7 +365,7 @@ const formatSlotTime = (hour, minute) => {
         </div>
 
         <!-- Cluster modal for overlapping events -->
-        <div
+        <ModalDialog
             v-if="clusterModal.visible"
             class="fixed inset-0 z-[80] flex items-center justify-center bg-black/50"
             @click.self="closeClusterModal"
@@ -412,7 +413,7 @@ const formatSlotTime = (hour, minute) => {
                     </button>
                 </div>
             </div>
-        </div>
+        </ModalDialog>
     </div>
 </template>
 

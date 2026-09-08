@@ -1,9 +1,9 @@
 <template>
-  <div class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-    <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+  <ModalDialog class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl flex flex-col overflow-hidden">
 
       <!-- Header -->
-      <div class="flex justify-between items-center border-b pb-3 mb-4">
+      <div class="flex shrink-0 justify-between items-center border-b px-6 py-4">
         <h3 class="text-2xl font-semibold text-gray-800">
           {{
             type === 'view'
@@ -19,7 +19,7 @@
       </div>
 
       <!-- Form -->
-      <div class="space-y-4">
+      <div class="space-y-4 min-h-0 overflow-y-auto px-6 py-4">
         <template v-if="type !== 'delete'">
           <!-- Room Type Name -->
           <div>
@@ -90,7 +90,8 @@
         </div>
 
         <!-- Footer Buttons -->
-        <div class="pt-4 border-t flex justify-end space-x-3">
+        </div>
+        <div class="shrink-0 px-6 py-4 border-t flex justify-end space-x-3">
           <button @click="emit('close')" class="bg-gray-500 text-white px-4 py-2 rounded-lg">
             Cancel
           </button>
@@ -114,9 +115,9 @@
             Delete
           </button>
         </div>
-      </div>
+
     </div>
-  </div>
+  </ModalDialog>
 
   <!-- Toasts -->
   <MessageFunction
@@ -130,6 +131,7 @@
 </template>
 
 <script setup>
+import ModalDialog from '@/Components/ModalDialog.vue'
 import { usePage, useForm, router } from '@inertiajs/vue3'
 import { ref, watch } from 'vue'
 import MessageFunction from '@/Components/MessageFunction.vue'

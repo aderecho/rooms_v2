@@ -1,4 +1,5 @@
 <script setup>
+import ModalDialog from '@/Components/ModalDialog.vue'
 import { ref, computed, watchEffect, onMounted, onUnmounted } from 'vue';
 import axios from 'axios';
 import { router } from '@inertiajs/vue3';
@@ -897,7 +898,7 @@ watchEffect(() => {
         <EventViewerModal :is-visible="modalState.eventViewer.visible" :event="modalState.eventViewer.event"
             @close="() => closeModal('eventViewer')" @edit="handleEditEvent" @delete="handleDeleteEvent" />
 
-        <div
+        <ModalDialog
             v-if="conflictNotice.visible"
             class="fixed inset-0 z-[70] flex items-center justify-center bg-black bg-opacity-50"
             @click.self="closeConflictNoticeModal"
@@ -934,10 +935,10 @@ watchEffect(() => {
                     </div>
                 </div>
             </div>
-        </div>
+        </ModalDialog>
 
         <!-- Delete confirmation modal -->
-        <div
+        <ModalDialog
             v-if="deleteConfirm.visible"
             class="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-50"
             @click.self="closeDeleteConfirmModal"
@@ -996,6 +997,6 @@ watchEffect(() => {
                     </div>
                 </div>
             </div>
-        </div>
+        </ModalDialog>
     </div>
 </template>

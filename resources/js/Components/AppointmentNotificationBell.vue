@@ -1,4 +1,5 @@
 <script setup>
+import ModalDialog from '@/Components/ModalDialog.vue'
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import axios from 'axios';
 import { router, usePage } from '@inertiajs/vue3';
@@ -424,7 +425,7 @@ const hasNotifications = computed(() => notifications.value.length > 0);
         </div>
 
         <!-- Clear all confirmation -->
-        <div
+        <ModalDialog
             v-if="clearConfirm.visible"
             class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4"
             @click.self="closeClearConfirm"
@@ -470,6 +471,6 @@ const hasNotifications = computed(() => notifications.value.length > 0);
                     </div>
                 </div>
             </div>
-        </div>
+        </ModalDialog>
     </div>
 </template>

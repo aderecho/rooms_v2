@@ -1,4 +1,5 @@
 <script setup>
+import ModalDialog from '@/Components/ModalDialog.vue'
 import { computed, ref } from 'vue';
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
 import { faChevronLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons';
@@ -502,7 +503,7 @@ const resetPagination = () => {
         </div>
 
         <!-- Status change modal -->
-        <div
+        <ModalDialog
             v-if="statusModal.visible"
             class="fixed inset-0 z-[80] flex items-center justify-center bg-black/50"
             @click.self="closeStatusModal"
@@ -580,10 +581,10 @@ const resetPagination = () => {
                     </button>
                 </div>
             </div>
-        </div>
+        </ModalDialog>
 
         <!-- Status change confirmation -->
-        <div
+        <ModalDialog
             v-if="statusConfirm.visible"
             class="fixed inset-0 z-[90] flex items-center justify-center bg-black/50"
             @click.self="closeStatusConfirm"
@@ -623,7 +624,7 @@ const resetPagination = () => {
                     </div>
                 </div>
             </div>
-        </div>
+        </ModalDialog>
     </div>
 </template>
 

@@ -1,4 +1,5 @@
 <script setup>
+import ModalDialog from '@/Components/ModalDialog.vue'
 import { defineProps, defineEmits, computed, ref, watch, onMounted } from 'vue';
 
 const props = defineProps({
@@ -311,7 +312,7 @@ onMounted(() => {
 
 <template>
     <Transition name="modal-fade">
-        <div v-if="isVisible" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" @click.self="emit('close')">
+        <ModalDialog v-if="isVisible" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" @click.self="emit('close')">
             <div class="bg-white rounded-lg shadow-2xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto transform transition-all duration-300 scale-100 opacity-100">
 
                 <!-- Loading overlay -->
@@ -704,7 +705,7 @@ onMounted(() => {
                 </div>
 
             </div>
-        </div>
+        </ModalDialog>
     </Transition>
 </template>
 

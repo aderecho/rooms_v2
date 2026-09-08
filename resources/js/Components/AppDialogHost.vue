@@ -1,4 +1,5 @@
 <script setup>
+import ModalDialog from '@/Components/ModalDialog.vue'
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useAppDialog } from '@/Composables/useAppDialog.js';
 
@@ -46,7 +47,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown));
             leave-from-class="opacity-100"
             leave-to-class="opacity-0"
         >
-            <div
+            <ModalDialog
                 v-if="dialog.open"
                 class="fixed inset-0 z-[1000] grid place-items-center bg-slate-950/65 p-4 backdrop-blur-[2px]"
                 :role="dialog.showCancel ? 'dialog' : 'alertdialog'"
@@ -89,7 +90,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown));
                         </button>
                     </div>
                 </section>
-            </div>
+            </ModalDialog>
         </Transition>
     </Teleport>
 </template>

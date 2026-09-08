@@ -1,10 +1,11 @@
 <template>
-  <div class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-    <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+  <Teleport to="body">
+  <ModalDialog class="bg-black/50" aria-labelledby="building-modal-title" @cancel.prevent="emit('close')">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[calc(100dvh-3rem)] flex flex-col overflow-hidden">
 
       <!-- Header -->
-      <div class="flex justify-between items-center border-b pb-3 mb-4">
-        <h3 class="text-2xl font-semibold text-gray-800">
+      <div class="flex shrink-0 justify-between items-center gap-4 border-b px-6 py-4">
+        <h3 id="building-modal-title" class="text-2xl font-semibold text-gray-800">
           {{
             type === 'view'
               ? 'View Building'
@@ -15,11 +16,11 @@
                   : 'Create New Building'
           }}
         </h3>
-        <button @click="emit('close')" class="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+        <button aria-label="Close building dialog" @click="emit('close')" class="text-gray-400 hover:text-gray-600 text-xl">✕</button>
       </div>
 
       <!-- Form -->
-      <div class="space-y-4">
+      <div class="space-y-4 min-h-0 overflow-y-auto overscroll-contain px-6 py-4">
         <template v-if="type !== 'delete'">
           <!-- Building Name -->
           <div>
@@ -43,7 +44,7 @@
           </div>
 
           <!-- Total Floors & Total Rooms -->
-          <div class="grid grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label class="block text-sm font-medium text-gray-700">Total Floors</label>
               <input type="number" v-model.number="formBuilding.total_floors" class="mt-1 w-full border rounded-md p-2"
@@ -57,7 +58,7 @@
           </div>
 
           <!-- Elevator & Parking -->
-          <div class="grid grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label class="block text-sm font-medium text-gray-700">Has Elevator</label>
               <select v-model.number="formBuilding.has_elevator" class="mt-1 w-full border rounded-md p-2"
@@ -77,7 +78,7 @@
           </div>
 
           <!-- Number of CR & Ramps -->
-          <div class="grid grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label class="block text-sm font-medium text-gray-700">Number of CR</label>
               <input type="number" v-model.number="formBuilding.restroom_count"
@@ -108,8 +109,9 @@
           This action cannot be undone.
         </div>
 
+      </div>
         <!-- Footer Buttons -->
-        <div class="pt-4 border-t flex justify-end space-x-3">
+        <div class="shrink-0 px-6 py-4 border-t flex justify-end space-x-3">
           <button @click="emit('close')" class="bg-gray-500 text-white px-4 py-2 rounded-lg">
             Cancel
           </button>
@@ -125,9 +127,9 @@
             Delete
           </button>
         </div>
-      </div>
     </div>
-  </div>
+  </ModalDialog>
+  </Teleport>
   <MessageFunction :show-info="!!localFlash" :info-message="localFlash" :show-error="showError"
     :error-message="errorMessage" @close-info="closeSuccessToast" @close-error="closeErrorToast" />
 
@@ -137,6 +139,7 @@
 <script setup>
 import { usePage, useForm, router } from '@inertiajs/vue3'
 import { ref, computed, watch } from 'vue'
+import ModalDialog from '@/Components/ModalDialog.vue'
 import MessageFunction from '@/Components/MessageFunction.vue'
 
 // --- Props & Emits ---
@@ -145,7 +148,6 @@ const props = defineProps({
   building: { type: Object, default: null }
 })
 const emit = defineEmits(['close'])
-
 // --- Backend props ---
 const page = usePage()
 const colleges = computed(() => page.props.colleges)

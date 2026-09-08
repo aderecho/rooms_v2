@@ -1,4 +1,5 @@
 <script setup>
+import ModalDialog from '@/Components/ModalDialog.vue'
 import { ref, computed, defineEmits, defineProps, watch, onMounted } from 'vue'
 import { router } from '@inertiajs/vue3'
 import IconButton from '@/Components/IconButton.vue'
@@ -632,7 +633,7 @@ const fetchTerms = () => {
         <!-- MODALS -->
 
         <!-- Status Change Modal -->
-        <div v-if="isStatusModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40" @click.self="closeStatusModal">
+        <ModalDialog v-if="isStatusModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40" @click.self="closeStatusModal">
             <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm transform transition-all duration-300 scale-100" @click.stop>
                 <h3 class="text-xl font-semibold text-gray-800 border-b pb-2 mb-4">Manage: {{ recordToUpdate?.name }}</h3>
 
@@ -667,10 +668,10 @@ const fetchTerms = () => {
                     </IconButton>
                 </div>
             </div>
-        </div>
+        </ModalDialog>
 
         <!-- Add/Edit Modal -->
-        <div v-if="isAddEditModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40" @click.self="isAddEditModalOpen = false">
+        <ModalDialog v-if="isAddEditModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40" @click.self="isAddEditModalOpen = false">
             <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md transform transition-all duration-300 scale-100 max-h-[90vh] overflow-y-auto" @click.stop>
                 <h3 class="text-xl font-semibold text-gray-800 border-b pb-2 mb-4">
                     {{ isAddMode ? 'Add New Term' : 'Edit Term: ' + editingRecord?.name }}
@@ -787,10 +788,10 @@ const fetchTerms = () => {
                     </div>
                 </form>
             </div>
-        </div>
+        </ModalDialog>
 
         <!-- Delete Confirmation Modal -->
-        <div v-if="isDeleteModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40" @click.self="closeDeleteModal">
+        <ModalDialog v-if="isDeleteModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40" @click.self="closeDeleteModal">
             <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm transform transition-all duration-300 scale-100" @click.stop>
                 <h3 class="text-xl font-semibold text-red-700 border-b pb-2 mb-4">Confirm Deletion</h3>
 
@@ -839,7 +840,7 @@ const fetchTerms = () => {
                     </IconButton>
                 </div>
             </div>
-        </div>
+        </ModalDialog>
     </div>
 </template>
 

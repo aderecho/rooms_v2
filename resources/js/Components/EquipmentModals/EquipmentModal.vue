@@ -1,4 +1,5 @@
 <script setup>
+import ModalDialog from '@/Components/ModalDialog.vue'
 import { computed, ref } from 'vue';
 import EquipmentFullDetailsModal from './EquipmentFullDetailsModal.vue';
 
@@ -39,7 +40,7 @@ const closeFullDetailsModal = () => {
 
 <template>
     <transition name="fade">
-        <div v-if="isVisible" class="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-2 sm:p-4">
+        <ModalDialog v-if="isVisible" class="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-2 sm:p-4">
             <div class="bg-white rounded-lg shadow-2xl w-full max-w-5xl p-4 sm:p-6 relative max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col">
 
                 <!-- Header - Responsive -->
@@ -188,7 +189,7 @@ const closeFullDetailsModal = () => {
                     </button>
                 </div>
             </div>
-        </div>
+        </ModalDialog>
     </transition>
 
     <!-- Full Details Modal -->

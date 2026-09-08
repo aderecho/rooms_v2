@@ -2,19 +2,18 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Room;
-use Inertia\Inertia;
-use App\Models\College;
 use App\Models\Building;
-use App\Models\Equipment;
+use App\Models\College;
 use App\Models\Department;
+use App\Models\Equipment;
+use App\Models\Room;
 use App\Models\UserAccount;
-use App\Services\EquipmentInventoryService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Inertia\Inertia;
 
-class EquipmentController extends Controller 
+class EquipmentController extends Controller
 {
     /**
      * Display the equipment management page
@@ -60,38 +59,38 @@ class EquipmentController extends Controller
                 'building:id,building_name',
                 'college:id,college_name',
                 'department:id,department_name',
-                'assignedUser:id,first_name,last_name,username'
+                'assignedUser:id,first_name,last_name,username',
             ]);
 
             // Apply filters
-            if (!empty($search)) {
-                $query->where(function($q) use ($search) {
+            if (! empty($search)) {
+                $query->where(function ($q) use ($search) {
                     $q->where('equipment_name', 'like', "%{$search}%")
-                      ->orWhere('inventory_id', 'like', "%{$search}%")
-                      ->orWhere('property_id', 'like', "%{$search}%")
-                      ->orWhere('brand', 'like', "%{$search}%")
-                      ->orWhere('model', 'like', "%{$search}%")
-                      ->orWhere('serial_number', 'like', "%{$search}%");
+                        ->orWhere('inventory_id', 'like', "%{$search}%")
+                        ->orWhere('property_id', 'like', "%{$search}%")
+                        ->orWhere('brand', 'like', "%{$search}%")
+                        ->orWhere('model', 'like', "%{$search}%")
+                        ->orWhere('serial_number', 'like', "%{$search}%");
                 });
             }
 
-            if (!empty($status)) {
+            if (! empty($status)) {
                 $query->where('status', $status);
             }
 
-            if (!empty($college_id)) {
+            if (! empty($college_id)) {
                 $query->where('college_id', $college_id);
             }
 
-            if (!empty($department_id)) {
+            if (! empty($department_id)) {
                 $query->where('department_id', $department_id);
             }
 
-            if (!empty($building_id)) {
+            if (! empty($building_id)) {
                 $query->where('building_id', $building_id);
             }
 
-            if (!empty($assigned_user_id)) {
+            if (! empty($assigned_user_id)) {
                 $query->where('assigned_user_id', $assigned_user_id);
             }
 
@@ -112,7 +111,7 @@ class EquipmentController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch equipment data.',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -152,7 +151,7 @@ class EquipmentController extends Controller
                 ->orderByDesc('equipment_count')
                 ->get()
                 ->map(function ($item) {
-                    if (!$item->assigned_user_id) {
+                    if (! $item->assigned_user_id) {
                         return [
                             'name' => 'Unassigned',
                             'equipmentCount' => (int) $item->equipment_count,
@@ -164,7 +163,7 @@ class EquipmentController extends Controller
 
                     return [
                         'name' => $user
-                            ? trim($user->first_name . ' ' . $user->last_name)
+                            ? trim($user->first_name.' '.$user->last_name)
                             : 'Unknown User',
                         'equipmentCount' => (int) $item->equipment_count,
                     ];
@@ -177,7 +176,7 @@ class EquipmentController extends Controller
                 ->orderByDesc('equipment_count')
                 ->get()
                 ->map(function ($item) {
-                    if (!$item->building_id) {
+                    if (! $item->building_id) {
                         return [
                             'building' => 'Unassigned Building',
                             'equipmentCount' => (int) $item->equipment_count,
@@ -199,7 +198,7 @@ class EquipmentController extends Controller
                 ->orderByDesc('equipment_count')
                 ->get()
                 ->map(function ($item) {
-                    if (!$item->college_id) {
+                    if (! $item->college_id) {
                         return [
                             'college' => 'Unassigned College',
                             'equipmentCount' => (int) $item->equipment_count,
@@ -227,7 +226,7 @@ class EquipmentController extends Controller
                         'inventory_id' => $item->inventory_id,
                         'status' => $item->status,
                         'updated_by' => $item->assignedUser
-                            ? $item->assignedUser->first_name . ' ' . $item->assignedUser->last_name
+                            ? $item->assignedUser->first_name.' '.$item->assignedUser->last_name
                             : 'System',
                         'updated_at' => $item->updated_at->format('M d, Y H:i'),
                     ];
@@ -333,7 +332,7 @@ class EquipmentController extends Controller
             if ($validator->fails()) {
                 return response()->json([
                     'success' => false,
-                    'errors' => $validator->errors()
+                    'errors' => $validator->errors(),
                 ], 422);
             }
 
@@ -342,13 +341,13 @@ class EquipmentController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Equipment created successfully.',
-                'data' => $equipment->load(['room', 'building', 'college', 'department', 'assignedUser'])
+                'data' => $equipment->load(['room', 'building', 'college', 'department', 'assignedUser']),
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to create equipment.',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -361,8 +360,8 @@ class EquipmentController extends Controller
         try {
             $validator = Validator::make($request->all(), [
                 'equipment_name' => 'sometimes|required|string|max:100',
-                'inventory_id' => 'sometimes|required|string|max:50|unique:equipment,inventory_id,' . $equipment->id,
-                'property_id' => 'nullable|string|max:50|unique:equipment,property_id,' . $equipment->id,
+                'inventory_id' => 'sometimes|required|string|max:50|unique:equipment,inventory_id,'.$equipment->id,
+                'property_id' => 'nullable|string|max:50|unique:equipment,property_id,'.$equipment->id,
                 'description' => 'nullable|string',
                 'quantity' => 'sometimes|required|integer|min:1',
                 'room_id' => 'nullable|exists:rooms,id',
@@ -383,7 +382,7 @@ class EquipmentController extends Controller
             if ($validator->fails()) {
                 return response()->json([
                     'success' => false,
-                    'errors' => $validator->errors()
+                    'errors' => $validator->errors(),
                 ], 422);
             }
 
@@ -392,13 +391,13 @@ class EquipmentController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Equipment updated successfully.',
-                'data' => $equipment->load(['room', 'building', 'college', 'department', 'assignedUser'])
+                'data' => $equipment->load(['room', 'building', 'college', 'department', 'assignedUser']),
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update equipment.',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -413,13 +412,13 @@ class EquipmentController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Equipment deleted successfully.'
+                'message' => 'Equipment deleted successfully.',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to delete equipment.',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -442,24 +441,24 @@ class EquipmentController extends Controller
             if ($validator->fails()) {
                 return response()->json([
                     'success' => false,
-                    'errors' => $validator->errors()
+                    'errors' => $validator->errors(),
                 ], 422);
             }
 
             $equipment->update($request->only([
-                'assigned_user_id', 'room_id', 'building_id', 'status'
+                'assigned_user_id', 'room_id', 'building_id', 'status',
             ]));
 
             return response()->json([
                 'success' => true,
                 'message' => 'Equipment transferred successfully.',
-                'data' => $equipment->load(['room', 'building', 'assignedUser'])
+                'data' => $equipment->load(['room', 'building', 'assignedUser']),
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to transfer equipment.',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -476,37 +475,37 @@ class EquipmentController extends Controller
                 'room:id,room_name,room_code',
                 'building:id,building_name',
                 'college:id,college_name',
-                'assignedUser:id,first_name,last_name,middle_name,username'
+                'assignedUser:id,first_name,last_name,middle_name,username',
             ])
-            ->whereNotNull('assigned_user_id');
+                ->whereNotNull('assigned_user_id');
 
             // Apply search filter if provided
-            if (!empty($search)) {
-                $query->where(function($q) use ($search) {
+            if (! empty($search)) {
+                $query->where(function ($q) use ($search) {
                     $q->where('equipment_name', 'like', "%{$search}%")
-                      ->orWhere('inventory_id', 'like', "%{$search}%")
-                      ->orWhere('property_id', 'like', "%{$search}%")
-                      ->orWhereHas('assignedUser', function($q) use ($search) {
-                          $q->where('first_name', 'like', "%{$search}%")
-                            ->orWhere('last_name', 'like', "%{$search}%");
-                      })
-                      ->orWhereHas('room', function($q) use ($search) {
-                          $q->where('room_code', 'like', "%{$search}%")
-                            ->orWhere('room_name', 'like', "%{$search}%");
-                      })
-                      ->orWhereHas('building', function($q) use ($search) {
-                          $q->where('building_name', 'like', "%{$search}%");
-                      })
-                      ->orWhereHas('college', function($q) use ($search) {
-                          $q->where('college_name', 'like', "%{$search}%");
-                      });
+                        ->orWhere('inventory_id', 'like', "%{$search}%")
+                        ->orWhere('property_id', 'like', "%{$search}%")
+                        ->orWhereHas('assignedUser', function ($q) use ($search) {
+                            $q->where('first_name', 'like', "%{$search}%")
+                                ->orWhere('last_name', 'like', "%{$search}%");
+                        })
+                        ->orWhereHas('room', function ($q) use ($search) {
+                            $q->where('room_code', 'like', "%{$search}%")
+                                ->orWhere('room_name', 'like', "%{$search}%");
+                        })
+                        ->orWhereHas('building', function ($q) use ($search) {
+                            $q->where('building_name', 'like', "%{$search}%");
+                        })
+                        ->orWhereHas('college', function ($q) use ($search) {
+                            $q->where('college_name', 'like', "%{$search}%");
+                        });
                 });
             }
 
             // Group by assigned user to get aggregated view
             $equipmentByUser = $query->get()
                 ->groupBy('assigned_user_id')
-                ->map(function($equipments, $userId) {
+                ->map(function ($equipments, $userId) {
                     $user = $equipments->first()->assignedUser;
                     $room = $equipments->first()->room;
                     $building = $equipments->first()->building;
@@ -514,20 +513,20 @@ class EquipmentController extends Controller
 
                     return [
                         'id' => $userId,
-                        'name' => $user ? $user->first_name . ' ' . $user->last_name : 'Unknown User',
+                        'name' => $user ? $user->first_name.' '.$user->last_name : 'Unknown User',
                         'room' => $room ? $room->room_code : 'N/A',
                         'building' => $building ? $building->building_name : 'N/A',
                         'college' => $college ? $college->college_name : 'N/A',
-                        'equipmentUsed' => $equipments->map(function($eq) {
+                        'equipmentUsed' => $equipments->map(function ($eq) {
                             return [
                                 'inventory_id' => $eq->inventory_id,
                                 'property_id' => $eq->property_id,
                                 'name' => $eq->equipment_name,
                                 'cfic' => $eq->cfic_id,
                                 'status' => ucfirst(str_replace('_', ' ', $eq->status)),
-                                'description' => $eq->description
+                                'description' => $eq->description,
                             ];
-                        })->toArray()
+                        })->toArray(),
                     ];
                 })
                 ->values();
@@ -536,15 +535,15 @@ class EquipmentController extends Controller
                 'success' => true,
                 'usage_list' => $equipmentByUser,
                 'total_users' => $equipmentByUser->count(),
-                'total_equipment' => $equipmentByUser->sum(function($user) {
+                'total_equipment' => $equipmentByUser->sum(function ($user) {
                     return count($user['equipmentUsed']);
-                })
+                }),
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch equipment usage data.',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -568,32 +567,16 @@ class EquipmentController extends Controller
             if (is_string($exclude)) {
                 $exclude = array_filter(array_map('trim', explode(',', $exclude)));
             }
-            if (!is_array($exclude)) {
+            if (! is_array($exclude)) {
                 $exclude = [];
             }
 
             $excludeLower = array_map(fn ($name) => strtolower((string) $name), $exclude);
 
-            // COUNT(*) per name — same rule as EquipmentInventoryService::globalInventoryCountsByName()
-            $suggestions = Equipment::query()
-                ->select('equipment_name', DB::raw('MIN(id) as id'), DB::raw('COUNT(*) as inventory_count'))
-                ->where('equipment_name', 'like', '%' . $query . '%')
-                ->groupBy('equipment_name')
-                ->orderBy('equipment_name')
-                ->limit(10)
-                ->get()
-                ->filter(function ($item) use ($excludeLower) {
-                    return !in_array(strtolower($item->equipment_name), $excludeLower, true);
-                })
-                ->values()
-                ->map(function ($item) use ($query) {
-                    return [
-                        'id' => (int) $item->id,
-                        'name' => $item->equipment_name,
-                        'inventory_count' => (int) $item->inventory_count,
-                        'match' => $query,
-                    ];
-                });
+            $suggestions = collect(app(\App\Services\ImsInventoryCatalog::class)->items())
+                ->filter(fn ($item) => mb_stripos($item['name'], $query) !== false
+                    && ! in_array(strtolower($item['name']), $excludeLower, true))
+                ->take(10)->values();
 
             return response()->json([
                 'success' => true,
@@ -602,8 +585,7 @@ class EquipmentController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to fetch equipment suggestions.',
-                'error' => $e->getMessage(),
+                'message' => 'Inventory is temporarily unavailable. Please try again.',
             ], 500);
         }
     }
@@ -615,7 +597,7 @@ class EquipmentController extends Controller
     {
         try {
             $names = $request->input('names', []);
-            if (!is_array($names)) {
+            if (! is_array($names)) {
                 $names = [$names];
             }
 
@@ -628,9 +610,7 @@ class EquipmentController extends Controller
                     continue;
                 }
 
-                $exists = Equipment::query()
-                    ->whereRaw('LOWER(equipment_name) = ?', [strtolower($trimmed)])
-                    ->exists();
+                $exists = app(\App\Services\ImsInventoryCatalog::class)->contains($trimmed);
 
                 if ($exists) {
                     $valid[] = $trimmed;
@@ -647,8 +627,7 @@ class EquipmentController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to validate equipment names.',
-                'error' => $e->getMessage(),
+                'message' => 'Inventory is temporarily unavailable. Please try again.',
             ], 500);
         }
     }
