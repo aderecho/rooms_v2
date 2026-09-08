@@ -14,6 +14,10 @@ return [
     |
     */
 
+    'ims' => [
+        'inventory_token' => env('IMS_INVENTORY_TOKEN'),
+    ],
+
     'postmark' => [
         'token' => env('POSTMARK_TOKEN'),
     ],
@@ -42,7 +46,7 @@ return [
     ],
 
     'saml' => [
-        'sp_entity_id' => env('SAML_SP_ENTITY_ID', env('APP_URL') ? env('APP_URL') . '/saml2/metadata' : null),
+        'sp_entity_id' => env('SAML_SP_ENTITY_ID', env('APP_URL') ? env('APP_URL').'/saml2/metadata' : null),
         'idp_entity_id' => env('SAML_IDP_ENTITY_ID'),
         'idp_public_cert' => env('SAML_IDP_PUBLIC_CERT'),
         'idp_private_key' => env('SAML_IDP_PRIVATE_KEY'),

@@ -2,7 +2,6 @@
 
 namespace App\Rules;
 
-use App\Models\Equipment;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 
@@ -14,14 +13,19 @@ class ValidEquipmentCatalogName implements ValidationRule
 
         if ($name === '') {
             $fail('Equipment name cannot be empty.');
+
             return;
         }
 
-        $exists = Equipment::query()
-            ->whereRaw('LOWER(equipment_name) = ?', [strtolower($name)])
-            ->exists();
+        try {
+            $exists = app(\App\Services\ImsInventoryCatalog::class)->contains($name);
+        } catch (\Throwable $e) {
+            $fail('Inventory is temporarily unavailable. Please try again.');
 
-        if (!$exists) {
+            return;
+        }
+
+        if (! $exists) {
             $fail("“{$name}” is not a registered equipment type. Please select a valid item from the suggestions.");
         }
     }

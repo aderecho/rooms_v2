@@ -1,10 +1,11 @@
 <template>
-  <div class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-    <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+  <Teleport to="body">
+  <ModalDialog class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-[80] p-3 sm:p-6">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[calc(100dvh-3rem)] flex flex-col overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="room-modal-title">
 
       <!-- Header -->
-      <div class="flex justify-between items-center border-b pb-3 mb-4">
-        <h3 class="text-2xl font-semibold text-gray-800">
+      <div class="flex shrink-0 justify-between items-center border-b px-6 py-4">
+        <h3 id="room-modal-title" class="text-2xl font-semibold text-gray-800">
           {{
             type === 'view'
               ? 'View Room'
@@ -19,7 +20,7 @@
       </div>
 
       <!-- FORM -->
-      <div class="space-y-4">
+      <div class="space-y-4 overflow-y-auto min-h-0 px-6 py-4">
         <template v-if="type !== 'delete'">
 
           <!-- Room Name -->
@@ -35,7 +36,7 @@
           </div>
 
           <!-- Floor / Capacity -->
-          <div class="grid grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label class="block text-sm font-medium">Floor Number</label>
               <input type="number" v-model.number="form.floor_number" class="input" :readonly="isView" />
@@ -53,7 +54,7 @@
           </div>
 
           <!-- Relations -->
-          <div class="grid grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label class="block text-sm font-medium">Building</label>
               <select v-model="form.building_id" class="input" :disabled="isView">
@@ -75,10 +76,10 @@
             </div>
           </div>
 
-          <div class="grid grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label class="block text-sm font-medium">College</label>
-              <select v-model="form.college_id" class="input" :disabled="isView">
+              <select v-model="form.college_id" class="input" :title="colleges?.find(c => c.id === form.college_id)?.college_name" :disabled="isView">
                 <option value="" disabled>Select College</option>
                 <option v-for="c in colleges" :key="c.id" :value="c.id">
                   {{ c.college_name }}
@@ -88,7 +89,7 @@
 
             <div>
               <label class="block text-sm font-medium">Department</label>
-              <select v-model="form.department_id" class="input" :disabled="isView">
+              <select v-model="form.department_id" class="input" :title="departments?.find(d => d.id === form.department_id)?.department_name" :disabled="isView">
                 <option value="" disabled>Select Department</option>
                 <option v-for="d in departments" :key="d.id" :value="d.id">
                   {{ d.department_name }}
@@ -129,8 +130,9 @@
           <strong>{{ room?.room_name }}</strong>?
         </div>
 
+        </div>
         <!-- FOOTER -->
-        <div class="pt-4 border-t flex justify-end gap-3">
+        <div class="shrink-0 px-6 py-4 border-t flex justify-end gap-3">
           <button @click="emit('close')" class="btn-gray">Cancel</button>
 
           <button
@@ -150,9 +152,9 @@
             Delete
           </button>
         </div>
-      </div>
     </div>
-  </div>
+  </ModalDialog>
+  </Teleport>
 
     <!-- Toast Messages -->
   <MessageFunction
@@ -167,6 +169,7 @@
 </template>
 
 <script setup>
+import ModalDialog from '@/Components/ModalDialog.vue'
 import { computed, watch, ref } from 'vue'
 import { useForm, usePage, router } from '@inertiajs/vue3'
 import MessageFunction from '@/Components/MessageFunction.vue'
@@ -177,7 +180,6 @@ const props = defineProps({
   room: Object
 })
 const emit = defineEmits(['close'])
-
 const page = usePage()
 
 // Backend props
@@ -314,7 +316,7 @@ const closeErrorToast = () => (showError.value = false)
 
 <style scoped>
 .input {
-  @apply mt-1 w-full border rounded-md p-2;
+  @apply mt-1 min-w-0 w-full border rounded-md p-2;
 }
 .btn-primary {
   @apply bg-[#005740] text-white px-4 py-2 rounded-lg;

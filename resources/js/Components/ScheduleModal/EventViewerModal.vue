@@ -1,4 +1,5 @@
 <script setup>
+import ModalDialog from '@/Components/ModalDialog.vue'
 import { computed } from 'vue';
 import { formatDateDisplay, formatTimeDisplay } from './utils/scheduleHelpers';
 import StatusBadge from '@/Components/ScheduleModal/StatusBadge.vue';
@@ -20,7 +21,7 @@ const hasValue = (v) => {
 </script>
 
 <template>
-    <div
+    <ModalDialog
         v-if="isVisible"
         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
     >
@@ -171,5 +172,5 @@ const hasValue = (v) => {
                 </div>
             </div>
         </div>
-    </div>
+    </ModalDialog>
 </template>

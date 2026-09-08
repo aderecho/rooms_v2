@@ -20,7 +20,7 @@ class RoomService
     {
         return Room::query()
             ->with('building:id,building_name,description')
-            ->select('id', 'room_name', 'room_code', 'capacity', 'building_id')
+            ->select('id', 'room_name', 'room_code', 'capacity', 'building_id', 'equipments')
             ->orderBy('room_name')
             ->get();
     }
@@ -28,7 +28,7 @@ class RoomService
     {
         return Room::query()
             ->with('building:id,building_name,description')
-            ->select('id', 'room_name', 'room_code', 'capacity', 'building_id')
+            ->select('id', 'room_name', 'room_code', 'capacity', 'building_id', 'equipments')
             ->findOrFail($id);
     }
 }

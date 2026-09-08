@@ -61,7 +61,11 @@
       role="listbox"
     >
       <li
-        v-if="loading"
+        v-if="searchError"
+        class="equipment-dropdown__empty" role="alert"
+      >{{ searchError }}</li>
+      <li
+        v-else-if="loading"
         class="equipment-dropdown__empty"
         role="status"
       >
@@ -104,7 +108,7 @@
 
     <!-- Validation popup: dismiss only via OK (keeps Create/Edit Room modal open behind it) -->
     <Teleport to="body">
-      <div
+      <ModalDialog
         v-if="showValidationModal"
         class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 px-4"
         role="alertdialog"
@@ -140,12 +144,13 @@
             </button>
           </div>
         </div>
-      </div>
+      </ModalDialog>
     </Teleport>
   </div>
 </template>
 
 <script setup>
+import ModalDialog from '@/Components/ModalDialog.vue'
 import { ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import axios from 'axios'
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
@@ -185,6 +190,8 @@ const isFocused = ref(false)
 const showValidationModal = ref(false)
 const invalidEntry = ref('')
 const loading = ref(false)
+const searchError = ref('')
+let searchVersion = 0
 const isValidating = ref(false)
 const validationLocked = ref(false)
 const okButtonRef = ref(null)
@@ -244,6 +251,7 @@ const isDuplicate = (name) => {
 }
 
 const fetchSuggestions = async () => {
+  const version = ++searchVersion
   const q = query.value.trim()
   if (!q) {
     suggestions.value = []
@@ -251,6 +259,8 @@ const fetchSuggestions = async () => {
     return
   }
 
+  searchError.value = ''
+  suggestions.value = []
   loading.value = true
   showDropdown.value = true
   try {
@@ -261,18 +271,23 @@ const fetchSuggestions = async () => {
       },
     })
 
+    if (version !== searchVersion) return
     if (data.success) {
       suggestions.value = data.data
       highlightedIndex.value = 0
     }
   } catch {
+    if (version !== searchVersion) return
     suggestions.value = []
+    searchError.value = 'Inventory is unavailable. Please try searching again.'
   } finally {
-    loading.value = false
+    if (version === searchVersion) loading.value = false
   }
 }
 
 const onInput = () => {
+  ++searchVersion
+  suggestions.value = []
   clearTimeout(debounceTimer)
   debounceTimer = setTimeout(fetchSuggestions, 200)
 }
@@ -332,7 +347,8 @@ const validateAndAdd = async (name) => {
     openValidationModal(trimmed)
     return false
   } catch {
-    openValidationModal(trimmed)
+    searchError.value = 'Inventory is unavailable. Please try searching again.'
+    showDropdown.value = true
     return false
   } finally {
     isValidating.value = false
@@ -499,7 +515,7 @@ onBeforeUnmount(() => {
 }
 
 .equipment-dropdown {
-  @apply absolute left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-56 overflow-y-auto py-1;
+  @apply relative mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-56 overflow-y-auto py-1;
 }
 
 .equipment-dropdown__item {

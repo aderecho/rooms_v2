@@ -1,4 +1,5 @@
 <script setup>
+import ModalDialog from '@/Components/ModalDialog.vue'
 import { ref } from 'vue'
 // ==============================
 // PROPS
@@ -220,7 +221,7 @@ const truncateText = (text, maxLength) => {
     </div>
 
     <!-- Cluster modal for month view day click -->
-    <div
+    <ModalDialog
         v-if="clusterModal.visible"
         class="fixed inset-0 z-[80] flex items-center justify-center bg-black/50"
         @click.self="closeClusterModal"
@@ -268,7 +269,7 @@ const truncateText = (text, maxLength) => {
                 </button>
             </div>
         </div>
-    </div>
+    </ModalDialog>
 </template>
 
 <style scoped>

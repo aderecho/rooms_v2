@@ -1,4 +1,5 @@
 <script setup>
+import ModalDialog from '@/Components/ModalDialog.vue'
 import { computed, ref } from 'vue';
 import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -206,7 +207,7 @@ const reject = () => {
             />
         </nav>
 
-        <div v-if="rejectionTarget" class="fixed inset-0 z-[120] grid place-items-center bg-slate-950/60 p-4" role="dialog" aria-modal="true" aria-labelledby="reject-title" @click.self="closeReject">
+        <ModalDialog v-if="rejectionTarget" class="fixed inset-0 z-[120] grid place-items-center bg-slate-950/60 p-4" role="dialog" aria-modal="true" aria-labelledby="reject-title" @click.self="closeReject">
             <form class="w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl" @submit.prevent="reject">
                 <div class="flex items-start justify-between gap-4">
                     <div>
@@ -230,6 +231,6 @@ const reject = () => {
                     </button>
                 </div>
             </form>
-        </div>
+        </ModalDialog>
     </AppLayout>
 </template>

@@ -1,5 +1,6 @@
 <!-- EquipmentFullDetailsModal.vue -->
 <script setup>
+import ModalDialog from '@/Components/ModalDialog.vue'
 import { computed } from 'vue';
 
 const props = defineProps({
@@ -55,7 +56,7 @@ const getStatusColor = (status) => {
 
 <template>
     <transition name="fade">
-        <div v-if="isVisible && equipment" class="fixed inset-0 bg-black bg-opacity-70 z-[60] flex items-center justify-center p-2 sm:p-4">
+        <ModalDialog v-if="isVisible && equipment" class="fixed inset-0 bg-black bg-opacity-70 z-[60] flex items-center justify-center p-2 sm:p-4">
             <div class="bg-white rounded-lg shadow-2xl w-full max-w-4xl p-4 sm:p-6 relative max-h-[95vh] overflow-hidden flex flex-col">
                 
                 <!-- Header -->
@@ -356,7 +357,7 @@ const getStatusColor = (status) => {
                     </button>
                 </div>
             </div>
-        </div>
+        </ModalDialog>
     </transition>
 </template>
 

@@ -1,4 +1,5 @@
 <script setup>
+import ModalDialog from '@/Components/ModalDialog.vue'
 import { computed, onMounted, ref } from 'vue';
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import IconButton from '@/Components/IconButton.vue';
@@ -1829,7 +1830,7 @@ onMounted(() => {
         </transition>
 
         <transition name="fade">
-            <div v-if="isDetailsModalVisible" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <ModalDialog v-if="isDetailsModalVisible" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
                 <div class="w-full max-w-lg rounded-xl bg-white p-6 shadow-2xl">
                     <div class="mb-5 flex items-center justify-between border-b border-slate-100 pb-4">
                         <h3 class="text-xl font-bold text-[#005740]">Room Details</h3>
@@ -1879,7 +1880,7 @@ onMounted(() => {
                         </button>
                     </div>
                 </div>
-            </div>
+            </ModalDialog>
         </transition>
     </div>
 </template>
