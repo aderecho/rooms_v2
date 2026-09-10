@@ -73,37 +73,6 @@ class RoomController extends Controller
 
     private function normalizeEquipments($equipments): ?array
     {
-        if (is_array($equipments)) {
-            $list = array_values(array_filter(array_map(
-                fn($item) => trim((string) $item),
-                $equipments
-            )));
-            return $list ?: null;
-        }
-
-        if (!is_string($equipments) || trim($equipments) === '') {
-            return null;
-        }
-
-        $trimmed = trim($equipments);
-
-        // Accept JSON array input if provided.
-        $decoded = json_decode($trimmed, true);
-        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
-            $list = array_values(array_filter(array_map(
-                fn($item) => trim((string) $item),
-                $decoded
-            )));
-            return $list ?: null;
-        }
-
-        // Fallback to comma/newline/semicolon separated text.
-        $list = preg_split('/[\r\n,;]+/', $trimmed) ?: [];
-        $list = array_values(array_filter(array_map(
-            fn($item) => trim((string) $item),
-            $list
-        )));
-
-        return $list ?: null;
+        return app(\App\Services\ImsInventoryCatalog::class)->snapshots($equipments ?? []);
     }
 }

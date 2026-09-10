@@ -28,7 +28,7 @@ trait NormalizesRoomEquipments
         }
 
         $normalized = array_values(array_unique(array_filter(array_map(
-            fn ($item) => trim((string) $item),
+            fn ($item) => is_array($item) ? trim((string) ($item['name'] ?? '')) : (is_string($item) ? trim($item) : $item),
             $equipments
         ))));
 

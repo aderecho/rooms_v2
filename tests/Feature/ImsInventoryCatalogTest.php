@@ -40,3 +40,33 @@ it('rejects malformed responses instead of treating them as an empty catalog', f
     Http::fake(['ims.upcebu.edu.ph/*' => Http::response(['unexpected' => []])]);
     expect(fn () => app(ImsInventoryCatalog::class)->items())->toThrow(RuntimeException::class);
 });
+
+it('persists complete IMS records on room creation and update and returns them through the API', function () {
+    $records = [
+        ['id' => 1, 'Item' => 'Projector', 'Property_number' => 'PROP-001', 'details' => ['serial' => 'ABC'], 'cost' => null],
+        ['id' => 2, 'Item' => ' projector ', 'Property_number' => 'PROP-002'],
+    ];
+    Http::fake(['ims.upcebu.edu.ph/*' => Http::response(['data' => $records])]);
+    $controller = app(\App\Http\Controllers\RoomController::class);
+    $request = Mockery::mock(\App\Http\Requests\StoreRoomRequest::class);
+    $request->shouldReceive('validated')->once()->andReturn([
+        'room_name' => 'Snapshot Room', 'room_code' => 'SNAP-001', 'equipments' => ['Projector'],
+    ]);
+    $controller->store($request);
+    $room = \App\Models\Room::where('room_code', 'SNAP-001')->firstOrFail();
+    expect($room->equipments[0]['inventory'])->toBe($records);
+    $this->getJson('/api/v1/room/list/'.$room->id)->assertOk()
+        ->assertJsonPath('data.equipments.0.inventory', $records);
+    $this->getJson('/api/v1/room/list/')->assertOk()
+        ->assertJsonFragment(['inventory' => $records]);
+
+    $update = Mockery::mock(\App\Http\Requests\UpdateRoomRequest::class);
+    $update->shouldReceive('validated')->once()->andReturn(['equipments' => ['PROJECTOR']]);
+    $controller->update($update, $room);
+    expect($room->fresh()->equipments[0]['inventory'])->toBe($records);
+
+    $clear = Mockery::mock(\App\Http\Requests\UpdateRoomRequest::class);
+    $clear->shouldReceive('validated')->once()->andReturn(['equipments' => []]);
+    $controller->update($clear, $room);
+    expect($room->fresh()->equipments)->toBe([]);
+});
