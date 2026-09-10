@@ -27,6 +27,7 @@ class CalendarScheduleController
                 'room_id' => $schedule->room_id,
                 'room_name' => $schedule->room?->room_name,
                 'room_code' => $schedule->room?->room_code,
+                'equipments' => $schedule->room?->equipments ?? [],
                 'building_name' => $schedule->room?->building?->building_name,
                 'event_title' => $schedule->event_title,
                 'event_type' => $schedule->event_type,

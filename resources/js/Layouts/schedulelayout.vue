@@ -62,7 +62,7 @@ const fullName = (user) => {
 
 const parseRoomEquipments = (equipments) => {
     if (!equipments) return [];
-    if (Array.isArray(equipments)) return equipments;
+    if (Array.isArray(equipments)) return equipments.map((item) => typeof item === 'string' ? item : item.name).filter(Boolean);
 
     if (typeof equipments === 'string') {
         const trimmed = equipments.trim();
@@ -70,7 +70,7 @@ const parseRoomEquipments = (equipments) => {
 
         try {
             const parsed = JSON.parse(trimmed);
-            if (Array.isArray(parsed)) return parsed;
+            if (Array.isArray(parsed)) return parseRoomEquipments(parsed);
         } catch (_) {
             // Fall back to splitting by common separators.
         }

@@ -540,7 +540,7 @@ const populatePreviewRoomForm = (room) => {
         description: room?.description || '',
         equipments: Array.isArray(room?.equipments) ? room.equipments : [],
     });
-    previewRoomEquipmentsText.value = Array.isArray(room?.equipments) ? room.equipments.join(', ') : '';
+    previewRoomEquipmentsText.value = Array.isArray(room?.equipments) ? room.equipments.map((item) => typeof item === 'string' ? item : item.name).filter(Boolean).join(', ') : '';
     previewRoomForm.reset();
 };
 

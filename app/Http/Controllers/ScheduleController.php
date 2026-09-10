@@ -63,7 +63,7 @@ class ScheduleController extends Controller
     private function roomsWithEquipmentDetails($rooms)
     {
         return $rooms->map(function (Room $room) {
-            $names = is_array($room->equipments) ? $room->equipments : [];
+            $names = is_array($room->equipments) ? array_map(fn ($item) => is_array($item) ? ($item['name'] ?? '') : $item, $room->equipments) : [];
             $room->setAttribute(
                 'equipment_details',
                 $this->equipmentInventory->equipmentDetailsForRoom($room->id, $names)
@@ -124,7 +124,7 @@ class ScheduleController extends Controller
             ->orWhere('room_code', $roomName)
             ->first();
 
-        $names = is_array($room?->equipments) ? $room->equipments : [];
+        $names = is_array($room?->equipments) ? array_map(fn ($item) => is_array($item) ? ($item['name'] ?? '') : $item, $room->equipments) : [];
 
         return response()->json([
             'success' => true,

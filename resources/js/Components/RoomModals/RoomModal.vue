@@ -229,7 +229,7 @@ const form = useForm({
 const equipmentList = computed({
   get() {
     const value = form.equipments
-    if (Array.isArray(value)) return value
+    if (Array.isArray(value)) return value.map((item) => typeof item === 'string' ? item : item.name).filter(Boolean)
     if (typeof value === 'string' && value.trim()) {
       return value.split(/[\r\n,;]+/).map((s) => s.trim()).filter(Boolean)
     }
