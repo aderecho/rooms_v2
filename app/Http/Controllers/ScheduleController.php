@@ -21,15 +21,22 @@ class ScheduleController extends Controller
 
     public function index(Request $request)
     {
-        $schedules = Schedule::with(['room.building', 'room.college', 'faculty', 'requester', 'term'])
-            ->orderBy('date', 'desc')
-            ->orderBy('start_time', 'desc')
-            ->get();
+        $filters = $request->validate([
+            'search' => 'nullable|string|max:200',
+            'per_page' => 'nullable|integer|in:5,10,20,50',
+            'page' => 'nullable|integer|min:1',
+        ]);
+        $search = trim($filters['search'] ?? '');
+        $schedules = $this->applySearch($this->pageQuery(), $search)
+            ->orderBy('date', 'desc')->orderBy('start_time', 'desc')->orderBy('id')
+            ->paginate((int) ($filters['per_page'] ?? 10))->withQueryString();
+        $counts = Schedule::query()->selectRaw('status, COUNT(*) as total')->groupBy('status')->pluck('total', 'status');
+        $pendingCount = $this->applySearch(Schedule::query(), $search)->where('status', 'pending')->count();
 
-        $rooms = $this->roomsWithEquipmentDetails(Room::orderBy('room_name')->get());
-        $faculty = UserAccount::where('user_type', 'faculty')->get();
-        $requesters = UserAccount::whereIn('user_type', ['faculty', 'staff'])->get();
-        $terms = Term::where('status', 'active')->get();
+        $rooms = $this->roomsWithEquipmentDetails(Room::select('id', 'room_name', 'room_code', 'equipments')->orderBy('room_name')->get());
+        $faculty = UserAccount::select('id', 'first_name', 'middle_name', 'last_name')->where('user_type', 'faculty')->get();
+        $requesters = UserAccount::select('id', 'first_name', 'middle_name', 'last_name')->whereIn('user_type', ['faculty', 'staff'])->get();
+        $terms = Term::select('id', 'term_name')->where('status', 'active')->get();
 
         $sessionUsername = data_get($request->session()->get('user'), 'username');
         $currentUser = $sessionUsername
@@ -45,7 +52,15 @@ class ScheduleController extends Controller
         $currentUserRole = strtolower((string) data_get($request->session()->get('user'), 'role', ''));
 
         return Inertia::render('Schedule', [
-            'schedules' => $schedules,
+            'schedules' => $schedules->items(),
+            'schedulePagination' => [
+                'current_page' => $schedules->currentPage(), 'last_page' => $schedules->lastPage(),
+                'per_page' => $schedules->perPage(), 'total' => $schedules->total(),
+                'from' => $schedules->firstItem(), 'to' => $schedules->lastItem(),
+            ],
+            'scheduleFilters' => ['search' => $search],
+            'scheduleCounts' => $counts,
+            'matchingPendingCount' => $pendingCount,
             'rooms' => $rooms,
             'roomEquipmentQuantities' => $this->buildRoomEquipmentQuantitiesMap($rooms),
             'globalEquipmentQuantities' => $this->equipmentInventory->globalInventoryCountsByName(),
@@ -55,6 +70,60 @@ class ScheduleController extends Controller
             'currentUserRole' => $currentUserRole,
             'terms' => $terms,
         ]);
+    }
+
+    private function pageQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return Schedule::query()
+            ->select([
+                'id', 'room_id', 'event_title', 'event_type', 'course_code', 'course_name',
+                'section', 'faculty_name', 'faculty_id', 'requester_id', 'requester_name',
+                'date', 'start_time', 'end_time', 'number_of_participants', 'description',
+                'agenda', 'organizer', 'equipment_needed', 'additional_requirements',
+                'status', 'is_recurring',
+            ])
+            ->with([
+                'room:id,room_name,room_code,building_id,college_id',
+                'room.building:id,building_name',
+                'room.college:id,college_name',
+                'faculty:id,first_name,middle_name,last_name',
+                'requester:id,first_name,middle_name,last_name',
+            ]);
+    }
+
+    private function applySearch(\Illuminate\Database\Eloquent\Builder $query, string $search): \Illuminate\Database\Eloquent\Builder
+    {
+        if ($search === '') {
+            return $query;
+        }
+        $term = '%'.strtolower($search).'%';
+        return $query->where(function ($q) use ($term) {
+            foreach (['event_title', 'course_code', 'course_name', 'faculty_name', 'requester_name', 'description', 'date', 'status', 'event_type'] as $field) {
+                $q->orWhereRaw('LOWER('.$field.') LIKE ?', [$term]);
+            }
+            $q->orWhereHas('room', function ($room) use ($term) {
+                $room->whereRaw('LOWER(room_name) LIKE ?', [$term])->orWhereRaw('LOWER(room_code) LIKE ?', [$term])
+                    ->orWhereHas('building', fn ($building) => $building->whereRaw('LOWER(building_name) LIKE ?', [$term]))
+                    ->orWhereHas('college', fn ($college) => $college->whereRaw('LOWER(college_name) LIKE ?', [$term]));
+            });
+        });
+    }
+
+    public function showDetails(Schedule $schedule)
+    {
+        return response()->json($this->pageQuery()->findOrFail($schedule->id));
+    }
+
+    public function calendarData(Request $request)
+    {
+        $validated = $request->validate([
+            'start' => 'required|date_format:Y-m-d',
+            'end' => 'required|date_format:Y-m-d|after_or_equal:start',
+            'page' => 'nullable|integer|min:1',
+        ]);
+        abort_if(Carbon::parse($validated['start'])->diffInDays(Carbon::parse($validated['end'])) > 62, 422, 'Calendar range cannot exceed 62 days.');
+        return response()->json($this->pageQuery()->whereBetween('date', [$validated['start'], $validated['end']])
+            ->orderBy('date')->orderBy('start_time')->orderBy('id')->paginate(500));
     }
 
     /**
@@ -273,18 +342,33 @@ class ScheduleController extends Controller
     {
         abort_unless(strtolower((string) data_get($request->session()->get('user'), 'role', '')) === 'admin', 403);
         $validated = $request->validate([
-            'ids' => 'required|array|min:1|max:5000',
+            'all' => 'sometimes|boolean',
+            'search' => 'nullable|string|max:200',
+            'ids' => 'required_unless:all,true|array|min:1|max:5000',
             'ids.*' => 'required|integer|distinct|exists:schedules,id',
         ]);
         $admin = $this->notificationService->resolveCurrentUser($request);
         $counts = ['approved_count' => 0, 'rejected_count' => 0];
-        foreach (Schedule::whereIn('id', $validated['ids'])->orderBy('id')->get() as $schedule) {
-            if ($schedule->status !== 'pending') {
-                continue;
-            }
-            $result = app(\App\Services\ScheduleApprovalService::class)->approve($schedule, $admin);
-            $counts[$result->status === 'approved' ? 'approved_count' : 'rejected_count']++;
+        $query = Schedule::query();
+        if ($request->boolean('all')) {
+            $this->applySearch($query, trim($validated['search'] ?? ''));
+        } else {
+            $query->whereIn('id', $validated['ids']);
         }
+        // Freeze the upper ID so records created during this operation are not included.
+        $query->where('id', '<=', (int) Schedule::max('id'));
+        $query->chunkById(100, function ($schedules) use ($admin, &$counts) {
+            foreach ($schedules as $schedule) {
+                if ($schedule->status === 'rejected') {
+                    continue;
+                }
+                if ($schedule->status !== 'pending') {
+                    continue;
+                }
+                $result = app(\App\Services\ScheduleApprovalService::class)->approve($schedule, $admin);
+                $counts[$result->status === 'approved' ? 'approved_count' : 'rejected_count']++;
+            }
+        });
         return response()->json(['success' => true, ...$counts]);
     }
 

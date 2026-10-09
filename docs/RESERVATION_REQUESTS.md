@@ -148,3 +148,5 @@ Room booking availability follows the selected date and time, not the legacy roo
 Pending schedules do not block student reservations until approved. Pending student reservation requests still block overlapping student requests.
 
 Approving a schedule or student reservation automatically rejects overlapping pending schedules and student reservation requests for the same room and date. An already approved/in-progress schedule retains the slot; a competing pending schedule is rejected. Adjacent time slots remain eligible. Student automatic rejections include decision history and rejection notifications.
+
+The Schedule page uses server-side pagination (5/10/20/50 rows), SQL search and aggregate status counts. Calendar data loads only the displayed range through `/Schedule/calendar-data` in pages of 500 rows. Approve all applies to matching records across pages in batches of 100. Deploy frontend assets with the controller and routes, then run `php artisan migrate --path=database/migrations/2026_10_09_000004_add_schedule_browsing_indexes.php --force` for the schedule browsing indexes and `php artisan view:clear`.

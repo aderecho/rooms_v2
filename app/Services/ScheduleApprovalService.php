@@ -35,20 +35,24 @@ class ScheduleApprovalService
                 $schedule->update(['status' => 'approved']);
                 $notifications->notifyStatusChangeToAllRoles($schedule, 'approved', $admin);
             }
-            foreach ($overlaps()->where('status', 'pending')->lockForUpdate()->get() as $other) {
-                $other->update(['status' => 'rejected']);
-                $notifications->notifyStatusChangeToAllRoles($other, 'rejected', $admin);
-            }
+            $overlaps()->where('status', 'pending')->lockForUpdate()->chunkById(100, function ($schedules) use ($notifications, $admin) {
+                foreach ($schedules as $other) {
+                    $other->update(['status' => 'rejected']);
+                    $notifications->notifyStatusChangeToAllRoles($other, 'rejected', $admin);
+                }
+            });
             if ($admin) {
                 $requests = ReservationRequest::where('room_id', $schedule->room_id)
                     ->whereDate('reservation_date', $schedule->date->format('Y-m-d'))
                     ->whereTime('start_time', '<', $schedule->end_time->format('H:i:s'))
                     ->whereTime('end_time', '>', $schedule->start_time->format('H:i:s'))
-                    ->where('status', 'pending')->lockForUpdate()->get();
-                foreach ($requests as $request) {
-                    app(ReservationRequestService::class)->reject($request, $admin,
-                        'Automatically rejected because another booking was approved for this room during the requested time.');
-                }
+                    ->where('status', 'pending')->lockForUpdate();
+                $requests->chunkById(100, function ($requests) use ($admin) {
+                    foreach ($requests as $request) {
+                        app(ReservationRequestService::class)->reject($request, $admin,
+                            'Automatically rejected because another booking was approved for this room during the requested time.');
+                    }
+                });
             }
             return $schedule;
         }, 3);
