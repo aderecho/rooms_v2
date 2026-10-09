@@ -2,7 +2,6 @@
 
 namespace App\Http\Resources;
 
-use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class RoomResource extends JsonResource
@@ -20,6 +19,7 @@ class RoomResource extends JsonResource
             'id' => $this->id,
             'room_name' => $this->room_name,
             'room_code' => $this->room_code,
+            'is_public' => $this->is_public,
             'capacity' => $this->capacity,
             'equipments' => $this->equipments ?? [],
             'building' => $building?->building_name,

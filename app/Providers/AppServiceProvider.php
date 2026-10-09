@@ -24,6 +24,13 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Gate::policy(ReservationRequest::class, ReservationRequestPolicy::class);
+        \Illuminate\Support\Facades\Event::listen(\Illuminate\Notifications\Events\NotificationSent::class, function ($event) {
+            $notification = $event->notification;
+            if ($notification instanceof \App\Notifications\ReservationRequestMailNotification && $notification->deliveryId && $event->channel === 'mail') {
+                \App\Models\ReservationMailDelivery::whereKey($notification->deliveryId)->update(['status' => 'sent', 'sent_at' => now(), 'last_error' => null]);
+                \Illuminate\Support\Facades\Log::info('Reservation email accepted by mail transport.', ['delivery_id' => $notification->deliveryId]);
+            }
+        });
         Vite::prefetch(concurrency: 3);
     }
 }

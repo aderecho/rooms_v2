@@ -94,7 +94,7 @@ class StudentReservationController extends Controller
         $this->authorize('view', $reservationRequest);
         abort_unless($request->user()?->user_type === 'student', 403);
 
-        $reservationRequest->load(['student', 'room.building', 'room.college', 'reviewer', 'schedule']);
+        $reservationRequest->load(['student', 'room.building', 'room.college', 'reviewer', 'schedule', 'student.college', 'student.department', 'history.actor']);
 
         return Inertia::render('ReservationRequestDetail', [
             'reservationRequest' => new ReservationRequestResource($reservationRequest),

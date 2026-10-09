@@ -20,6 +20,7 @@ class RoomListResource extends JsonResource
             'id' => $this->id,
             'room_name' => $this->room_name,
             'room_code' => $this->room_code,
+            'is_public' => $this->is_public,
             'capacity' => $this->capacity,
             'equipments' => $this->equipments ?? [],
             'building' => $building?->building_name,

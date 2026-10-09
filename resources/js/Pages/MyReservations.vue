@@ -198,6 +198,7 @@ const filterByStatus = (status) => {
 
                     <div v-if="unavailableRooms.length" class="rounded-xl border border-red-200 bg-red-50/60 p-4">
                         <h3 class="text-sm font-extrabold text-red-900">Unavailable rooms and time slots</h3>
+                        <p class="mt-1 text-xs text-slate-600">Rooms are unavailable when an approved or in-progress schedule or pending or approved reservation overlaps your selected date and time.</p>
                         <div class="mt-3 max-h-44 space-y-2 overflow-y-auto pr-1">
                             <div v-for="room in unavailableRooms" :key="room.id" class="rounded-lg border border-red-200 bg-white p-3 text-xs text-slate-700">
                                 <strong class="text-sm text-slate-900">{{ room.room_code }} — {{ room.room_name }}</strong>

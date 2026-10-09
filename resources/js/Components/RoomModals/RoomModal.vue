@@ -4,8 +4,8 @@
     <div class="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[calc(100dvh-3rem)] flex flex-col overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="room-modal-title">
 
       <!-- Header -->
-      <div class="flex shrink-0 justify-between items-center border-b px-6 py-4">
-        <h3 id="room-modal-title" class="text-2xl font-semibold text-gray-800">
+      <div class="flex shrink-0 justify-between items-center border-b border-[#005740] bg-[#005740] px-6 py-4">
+        <h3 id="room-modal-title" class="text-2xl font-semibold text-white">
           {{
             type === 'view'
               ? 'View Room'
@@ -16,7 +16,7 @@
                   : 'Create New Room'
           }}
         </h3>
-        <button @click="emit('close')" class="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+        <button @click="emit('close')" class="text-white/80 hover:text-white text-xl" aria-label="Close room panel">✕</button>
       </div>
 
       <!-- FORM -->
@@ -45,6 +45,16 @@
               <label class="block text-sm font-medium">Capacity</label>
               <input type="number" v-model.number="form.capacity" class="input" :readonly="isView" />
             </div>
+          </div>
+
+          <div>
+            <label for="room-visibility" class="block text-sm font-medium">Room Visibility</label>
+            <select id="room-visibility" v-model="form.is_public" class="input" :disabled="isView"
+              :aria-invalid="!!form.errors.is_public" :aria-describedby="form.errors.is_public ? 'room-visibility-error' : undefined">
+              <option :value="0">Private</option>
+              <option :value="1">Public</option>
+            </select>
+            <p v-if="form.errors.is_public" id="room-visibility-error" class="mt-1 text-sm text-red-600">{{ form.errors.is_public }}</p>
           </div>
 
           <!-- Location -->
@@ -211,7 +221,8 @@ watch(localFlash, (val) => {
 /* --------------------
    FORM
 -------------------- */
-const form = useForm({
+const initialRoomForm = {
+  is_public: 0,
   room_name: '',
   room_code: '',
   building_id: '',
@@ -224,7 +235,8 @@ const form = useForm({
   capacity: 0,
   description: '',
   equipments: [],
-})
+}
+const form = useForm({ ...initialRoomForm })
 
 const equipmentList = computed({
   get() {
@@ -245,13 +257,16 @@ watch(
   () => [props.room, props.type],
   ([room, type]) => {
     if ((type === 'edit' || type === 'view') && room) {
-      form.defaults({ ...room })
+      form.defaults({ ...initialRoomForm, ...room, is_public: Number(room.is_public ?? 0) })
       form.reset()
     }
 
     if (type === 'add') {
+      form.defaults({ ...initialRoomForm })
       form.reset()
     }
+
+    form.clearErrors()
 
     // reset messages on open
     localFlash.value = ''
@@ -283,7 +298,7 @@ const submit = () => {
       )
       errorMessage.value = equipmentError
         ? equipmentError[1]
-        : 'Failed to save room. Check that all equipment items are valid.'
+        : errors.is_public || 'Failed to save room. Check that all equipment items are valid.'
       showError.value = true
       setTimeout(() => (showError.value = false), 5000)
     },

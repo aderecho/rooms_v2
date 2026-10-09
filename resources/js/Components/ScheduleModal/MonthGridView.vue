@@ -1,5 +1,6 @@
 <script setup>
 import ModalDialog from '@/Components/ModalDialog.vue'
+import StatusBadge from '@/Components/ScheduleModal/StatusBadge.vue'
 import { ref } from 'vue'
 // ==============================
 // PROPS
@@ -255,6 +256,7 @@ const truncateText = (text, maxLength) => {
                     <div class="mt-2 text-xs text-gray-700 space-y-1">
                         <p><span class="font-semibold">Time</span>: {{ event.allDay ? 'All Day' : formatEventTime(event) }}</p>
                         <p><span class="font-semibold">Room</span>: {{ event.extendedProps?.room || 'N/A' }}</p>
+                        <div class="flex items-center gap-2 pt-1"><span class="font-semibold">Status:</span><StatusBadge :status="event.extendedProps?.status || event.status || 'pending'" /></div>
                     </div>
                 </button>
             </div>

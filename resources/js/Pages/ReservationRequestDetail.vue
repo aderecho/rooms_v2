@@ -1,9 +1,9 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import StatusBadge from '@/Components/ScheduleModal/StatusBadge.vue';
-import { confirmDialog } from '@/Composables/useAppDialog.js';
+import { confirmDialog, notifyDialog } from '@/Composables/useAppDialog.js';
 
 const props = defineProps({
     reservationRequest: { type: Object, required: true },
@@ -14,6 +14,7 @@ const page = usePage();
 const item = computed(() => props.reservationRequest?.data || props.reservationRequest);
 const isAdmin = computed(() => props.viewerMode === 'admin');
 const backUrl = computed(() => isAdmin.value ? '/ReservationRequests' : '/MyReservations');
+const deciding = ref(false);
 const rejectForm = useForm({ admin_response: '' });
 
 const formatDate = (value, includeTime = false) => {
@@ -31,16 +32,22 @@ const formatTime = (value) => {
 };
 
 const approve = async () => {
+    if (deciding.value || rejectForm.processing) return;
+    deciding.value = true;
     const confirmed = await confirmDialog(
         `Approve ${item.value.student?.name}'s reservation for ${item.value.room?.room_name}? The approved time will be added to the room calendar.`,
         { title: 'Approve reservation request', confirmLabel: 'Approve request' },
     );
-    if (!confirmed) return;
-    router.patch(`/ReservationRequests/${item.value.id}/approve`, {}, { preserveScroll: true });
+    if (!confirmed) { deciding.value = false; return; }
+    router.patch(`/ReservationRequests/${item.value.id}/approve`, {}, { preserveScroll: true, onError: (errors) => notifyDialog(Object.values(errors).join('\n'), { title: 'Reservation could not be approved', variant: 'danger' }), onFinish: () => { deciding.value = false; } });
 };
 
-const reject = () => {
-    rejectForm.patch(`/ReservationRequests/${item.value.id}/reject`, { preserveScroll: true });
+const reject = async () => {
+    if (deciding.value || rejectForm.processing) return;
+    deciding.value = true;
+    const confirmed = await confirmDialog('Reject this request and send the message to the student?', { title: 'Confirm rejection', confirmLabel: 'Reject request', variant: 'danger' });
+    if (!confirmed) { deciding.value = false; return; }
+    rejectForm.patch(`/ReservationRequests/${item.value.id}/reject`, { preserveScroll: true, onFinish: () => { deciding.value = false; } });
 };
 </script>
 
@@ -79,6 +86,13 @@ const reject = () => {
                         <p class="text-xs font-extrabold uppercase tracking-[0.12em] text-slate-500">Student</p>
                         <p class="mt-1 font-bold text-slate-900">{{ item.student?.name }}</p>
                         <p class="text-sm text-slate-600">{{ item.student?.email }}</p>
+                        <dl class="mt-3 space-y-2 text-sm text-slate-600">
+                            <div><dt class="font-semibold">Account identifier</dt><dd>{{ item.student?.account_identifier || 'Not provided' }}</dd></div>
+                            <div v-if="item.student?.college"><dt class="font-semibold">College</dt><dd>{{ item.student.college }}</dd></div>
+                            <div v-if="item.student?.department"><dt class="font-semibold">Department</dt><dd>{{ item.student.department }}</dd></div>
+                            <div v-if="item.student?.contact_number"><dt class="font-semibold">Contact</dt><dd>{{ item.student.contact_number }}</dd></div>
+                            <div><dt class="font-semibold">Room location</dt><dd>{{ item.room?.location || 'Not specified' }}</dd></div>
+                        </dl>
                     </div>
                     <div class="grid gap-4 sm:grid-cols-2">
                         <div><p class="text-xs font-extrabold uppercase tracking-[0.12em] text-slate-500">Date</p><p class="mt-1 font-bold text-slate-900">{{ formatDate(item.reservation_date) }}</p></div>
@@ -102,15 +116,29 @@ const reject = () => {
                         <p class="mt-1 whitespace-pre-line">{{ item.admin_response }}</p>
                     </div>
 
+                    <div v-if="item.history?.length" class="mt-5 border-t border-slate-200 pt-4">
+                        <h3 class="font-bold text-slate-900">Status history</h3>
+                        <ol class="mt-3 space-y-3 text-sm">
+                            <li v-for="entry in item.history" :key="entry.id">
+                                <strong class="capitalize">{{ entry.to_status }}</strong> · {{ entry.actor || 'Reservation office' }}<br>
+                                <span class="text-slate-500">{{ formatDate(entry.created_at, true) }}</span>
+                                <p v-if="entry.remarks" class="mt-1 whitespace-pre-line">{{ entry.remarks }}</p>
+                            </li>
+                        </ol>
+                    </div>
+                    <div v-if="isAdmin && item.mail_deliveries?.length" class="mt-5 border-t border-slate-200 pt-4">
+                        <h3 class="font-bold text-slate-900">Email notifications</h3>
+                        <ul class="mt-2 space-y-1 text-sm"><li v-for="delivery in item.mail_deliveries" :key="delivery.id"><span class="capitalize">{{ delivery.event }}: {{ delivery.status }}</span> · {{ delivery.attempts }} attempt(s)</li></ul>
+                    </div>
                     <div v-if="isAdmin && item.status === 'pending'" class="mt-5 border-t border-slate-200 pt-5">
-                        <button type="button" class="w-full rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-extrabold text-white hover:bg-emerald-800" @click="approve">Approve and add to calendar</button>
+                        <button type="button" class="w-full rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-extrabold text-white hover:bg-emerald-800" :disabled="deciding || rejectForm.processing" @click="approve">{{ deciding ? 'Processing…' : 'Approve and add to calendar' }}</button>
                         <form class="mt-4" @submit.prevent="reject">
                             <label class="grid gap-1.5 text-sm font-semibold text-slate-700">
                                 Required rejection message
                                 <textarea v-model="rejectForm.admin_response" class="app-field min-h-28" maxlength="2000" required placeholder="Explain the rejection to the student."></textarea>
                             </label>
                             <p v-if="rejectForm.errors.admin_response" class="mt-1 text-sm font-semibold text-red-700">{{ rejectForm.errors.admin_response }}</p>
-                            <button type="submit" class="mt-3 w-full rounded-lg bg-red-700 px-4 py-2.5 text-sm font-extrabold text-white hover:bg-red-800 disabled:opacity-60" :disabled="rejectForm.processing || !rejectForm.admin_response.trim()">
+                            <button type="submit" class="mt-3 w-full rounded-lg bg-red-700 px-4 py-2.5 text-sm font-extrabold text-white hover:bg-red-800 disabled:opacity-60" :disabled="deciding || rejectForm.processing || !rejectForm.admin_response.trim()">
                                 {{ rejectForm.processing ? 'Rejecting…' : 'Reject with message' }}
                             </button>
                         </form>

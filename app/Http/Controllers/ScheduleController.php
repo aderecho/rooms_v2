@@ -242,6 +242,14 @@ class ScheduleController extends Controller
             ], 422);
         }
 
+        if ($validated['status'] === 'approved') {
+            $schedule = app(\App\Services\ScheduleApprovalService::class)->approve(
+                $schedule, $this->notificationService->resolveCurrentUser($request)
+            );
+            $schedule->load(['room.building', 'room.college', 'faculty', 'requester', 'term']);
+            return response()->json(['success' => true, 'schedule' => $schedule]);
+        }
+
         $schedule->update([
             'status' => $validated['status'],
         ]);
@@ -259,6 +267,25 @@ class ScheduleController extends Controller
             'success' => true,
             'schedule' => $schedule,
         ]);
+    }
+
+    public function bulkApprove(Request $request)
+    {
+        abort_unless(strtolower((string) data_get($request->session()->get('user'), 'role', '')) === 'admin', 403);
+        $validated = $request->validate([
+            'ids' => 'required|array|min:1|max:5000',
+            'ids.*' => 'required|integer|distinct|exists:schedules,id',
+        ]);
+        $admin = $this->notificationService->resolveCurrentUser($request);
+        $counts = ['approved_count' => 0, 'rejected_count' => 0];
+        foreach (Schedule::whereIn('id', $validated['ids'])->orderBy('id')->get() as $schedule) {
+            if ($schedule->status !== 'pending') {
+                continue;
+            }
+            $result = app(\App\Services\ScheduleApprovalService::class)->approve($schedule, $admin);
+            $counts[$result->status === 'approved' ? 'approved_count' : 'rejected_count']++;
+        }
+        return response()->json(['success' => true, ...$counts]);
     }
 
     private function validatePayload(Request $request): array

@@ -9,6 +9,7 @@ use App\Models\UserAccount;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 
 class ReservationRequestService
@@ -35,7 +36,6 @@ class ReservationRequestService
 
         return $rooms->map(function (Room $room) use ($date, $startTime, $endTime) {
             $conflicts = $this->roomConflicts($room->id, $date, $startTime, $endTime);
-            $statusAvailable = strtolower((string) $room->status) === 'available';
 
             return [
                 'id' => $room->id,
@@ -46,8 +46,8 @@ class ReservationRequestService
                 'building' => $room->building?->building_name,
                 'college' => $room->college?->college_name,
                 'status' => $room->status,
-                'is_available' => $statusAvailable && $conflicts === [],
-                'unavailable_reason' => $statusAvailable ? null : 'Room is currently unavailable.',
+                'is_available' => $conflicts === [],
+                'unavailable_reason' => null,
                 'conflicts' => $conflicts,
             ];
         })->values()->all();
@@ -55,6 +55,7 @@ class ReservationRequestService
 
     public function submit(UserAccount $student, array $data): ReservationRequest
     {
+        Gate::forUser($student)->authorize('create', ReservationRequest::class);
         [$request, $admins] = DB::transaction(function () use ($student, $data) {
             $room = Room::query()->lockForUpdate()->findOrFail($data['room_id']);
             $this->assertWithinOperatingHours($data['start_time'], $data['end_time']);
@@ -68,6 +69,7 @@ class ReservationRequestService
                 'status' => ReservationRequest::STATUS_PENDING,
             ])->load(['student', 'room.building', 'room.college']);
 
+            $request->history()->create(['actor_id' => $student->id, 'to_status' => 'pending']);
             $admins = $this->notifications->notifyAdminsInSystem($request);
 
             return [$request, $admins];
@@ -80,6 +82,7 @@ class ReservationRequestService
 
     public function approve(ReservationRequest $reservationRequest, UserAccount $admin): ReservationRequest
     {
+        Gate::forUser($admin)->authorize('approve', $reservationRequest);
         $request = DB::transaction(function () use ($reservationRequest, $admin) {
             $lockedRequest = ReservationRequest::query()
                 ->lockForUpdate()
@@ -98,6 +101,10 @@ class ReservationRequestService
                 'end_time' => $lockedRequest->end_time->format('H:i'),
             ];
 
+            $this->assertWithinOperatingHours($data['start_time'], $data['end_time']);
+            if ($lockedRequest->reservation_date->lt(today())) {
+                throw ValidationException::withMessages(['reservation_date' => 'A past reservation cannot be approved.']);
+            }
             $this->assertRoomCanAccept($room, $lockedRequest->attendees);
             $this->assertRoomHasNoConflict(
                 $room->id,
@@ -134,6 +141,8 @@ class ReservationRequestService
                 'schedule_id' => $schedule->id,
             ]);
 
+            app(ScheduleApprovalService::class)->approve($schedule, $admin);
+            $lockedRequest->history()->create(['actor_id' => $admin->id, 'from_status' => 'pending', 'to_status' => 'approved']);
             $lockedRequest->load(['student', 'room.building', 'room.college', 'reviewer', 'schedule']);
             $this->notifications->notifyStudentInSystem($lockedRequest, 'approved');
 
@@ -150,6 +159,8 @@ class ReservationRequestService
         UserAccount $admin,
         string $message,
     ): ReservationRequest {
+        Gate::forUser($admin)->authorize('reject', $reservationRequest);
+        validator(['admin_response' => trim($message)], ['admin_response' => 'required|string|min:3|max:2000'])->validate();
         $request = DB::transaction(function () use ($reservationRequest, $admin, $message) {
             $lockedRequest = ReservationRequest::query()
                 ->lockForUpdate()
@@ -169,6 +180,7 @@ class ReservationRequestService
                 'admin_response' => trim($message),
             ]);
 
+            $lockedRequest->history()->create(['actor_id' => $admin->id, 'from_status' => 'pending', 'to_status' => 'rejected', 'remarks' => trim($message)]);
             $lockedRequest->load(['student', 'room.building', 'room.college', 'reviewer']);
             $this->notifications->notifyStudentInSystem($lockedRequest, 'rejected');
 
@@ -191,12 +203,6 @@ class ReservationRequestService
 
     private function assertRoomCanAccept(Room $room, int $attendees): void
     {
-        if (strtolower((string) $room->status) !== 'available') {
-            throw ValidationException::withMessages([
-                'room_id' => 'The selected room is not currently available.',
-            ]);
-        }
-
         if ($room->capacity && $attendees > $room->capacity) {
             throw ValidationException::withMessages([
                 'attendees' => "The selected room can accommodate at most {$room->capacity} attendees.",
@@ -231,7 +237,7 @@ class ReservationRequestService
         if ($schedule) {
             throw ValidationException::withMessages([
                 'room_id' => sprintf(
-                    'The room is no longer available from %s to %s because it conflicts with an approved schedule.',
+                    'The room is no longer available from %s to %s because it conflicts with an existing schedule.',
                     Carbon::parse($schedule->start_time)->format('g:i A'),
                     Carbon::parse($schedule->end_time)->format('g:i A'),
                 ),
@@ -265,7 +271,7 @@ class ReservationRequestService
                 'status' => $schedule->status,
                 'start_time' => $schedule->start_time->format('H:i'),
                 'end_time' => $schedule->end_time->format('H:i'),
-                'label' => 'Approved schedule',
+                'label' => ucfirst(str_replace('_', ' ', $schedule->status)).' schedule',
             ])
             ->toBase();
 

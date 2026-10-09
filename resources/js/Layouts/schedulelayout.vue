@@ -14,6 +14,7 @@ import MessageFunction from '@/Components/MessageFunction.vue';
 import AppointmentModal from '@/Components/ScheduleModal/AppointmentModal.vue';
 import CalendarView from '@/Components/ScheduleModal/CalendarView.vue';
 import TableComponent from '@/Components/ScheduleModal/TableComponent.vue';
+import ScheduleOverview from '@/Components/ScheduleModal/ScheduleOverview.vue';
 import MonthGridView from '@/Components/ScheduleModal/MonthGridView.vue';
 import TimeGridView from '@/Components/ScheduleModal/TimeGridView.vue';
 import EventViewerModal from '@/Components/ScheduleModal/EventViewerModal.vue';
@@ -382,7 +383,7 @@ const handleStatusUpdate = async ({ event, status, onComplete, onError }) => {
         refreshSchedulesFromServer();
         window.dispatchEvent(new CustomEvent('appointment-notifications:refresh'));
         window.dispatchEvent(new CustomEvent('appointment-status:success', {
-            detail: { message: `Appointment status updated to ${getAppointmentStatusLabel(status)}.` },
+            detail: { message: `Appointment status updated to ${getAppointmentStatusLabel(res.data.schedule.status)}.` },
         }));
         onComplete?.();
     } catch (err) {
@@ -747,7 +748,7 @@ watchEffect(() => {
                             <div>
                                 <Breadcrumbs trail="UPCEBU > CALENDAR" />
                                 <h1 class="app-page-title mt-2">Calendar</h1>
-                                <p class="mt-1 text-sm text-slate-500">Review schedule activity, approvals, and the next room allocation.</p>
+                                <p class="mt-1 text-sm text-slate-500">Review schedule activity, approvals, and room allocations.</p>
                             </div>
                             <span class="inline-flex w-fit items-center gap-2 rounded-full bg-[#e7f5f0] px-3 py-1.5 text-xs font-bold text-[#005740]">
                                 <i class="h-2 w-2 rounded-full bg-[#005740]"></i>
@@ -755,61 +756,7 @@ watchEffect(() => {
                             </span>
                         </div>
 
-                        <div class="grid gap-3 sm:grid-cols-3 xl:grid-cols-[0.72fr_0.72fr_0.72fr_1.55fr]">
-                            <article class="group rounded-xl border border-slate-200 bg-slate-50 p-4 transition hover:-translate-y-0.5 hover:shadow-md">
-                                <div class="flex items-start justify-between gap-3">
-                                    <div>
-                                        <p class="text-[11px] font-extrabold uppercase tracking-[0.1em] text-slate-500">Total schedules</p>
-                                        <p class="mt-2 text-3xl font-black text-slate-950">{{ scheduleStats.total }}</p>
-                                    </div>
-                                    <span class="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600">
-                                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 3v4M17 3v4M4 9h16M6 5h12a2 2 0 0 1 2 2v12H4V7a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="1.8"/></svg>
-                                    </span>
-                                </div>
-                                <p class="mt-2 text-xs text-slate-500">All appointment records</p>
-                            </article>
-
-                            <article class="group rounded-xl border border-emerald-200 bg-emerald-50/80 p-4 transition hover:-translate-y-0.5 hover:shadow-md">
-                                <div class="flex items-start justify-between gap-3">
-                                    <div>
-                                        <p class="text-[11px] font-extrabold uppercase tracking-[0.1em] text-emerald-700">Approved</p>
-                                        <p class="mt-2 text-3xl font-black text-[#005740]">{{ scheduleStats.approved }}</p>
-                                    </div>
-                                    <span class="grid h-9 w-9 place-items-center rounded-lg bg-white text-[#005740] shadow-sm">
-                                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 12 4 4 8-9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                                    </span>
-                                </div>
-                                <p class="mt-2 text-xs text-emerald-700/80">Ready and confirmed</p>
-                            </article>
-
-                            <article class="group rounded-xl border border-amber-200 bg-amber-50/90 p-4 transition hover:-translate-y-0.5 hover:shadow-md">
-                                <div class="flex items-start justify-between gap-3">
-                                    <div>
-                                        <p class="text-[11px] font-extrabold uppercase tracking-[0.1em] text-amber-700">Pending</p>
-                                        <p class="mt-2 text-3xl font-black text-amber-700">{{ scheduleStats.pending }}</p>
-                                    </div>
-                                    <span class="grid h-9 w-9 place-items-center rounded-lg bg-white text-amber-700 shadow-sm">
-                                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="1.8"/><path d="M12 8v4l2.5 1.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-                                    </span>
-                                </div>
-                                <p class="mt-2 text-xs text-amber-700/80">Requires review</p>
-                            </article>
-
-                            <article class="relative overflow-hidden rounded-xl border border-[#005740]/15 bg-gradient-to-br from-white to-[#edf7f3] p-4">
-                                <div class="absolute bottom-0 right-0 h-20 w-20 translate-x-6 translate-y-6 rounded-full border-[12px] border-[#005740]/5"></div>
-                                <div class="relative flex h-full items-start gap-3">
-                                    <span class="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[#005740] text-white shadow-sm">
-                                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8 4v3M16 4v3M5 9h14M6 6h12a1 1 0 0 1 1 1v12H5V7a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.8"/><path d="m9 14 2 2 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                                    </span>
-                                    <div class="min-w-0">
-                                        <p class="text-[11px] font-extrabold uppercase tracking-[0.1em] text-[#005740]">Next schedule</p>
-                                        <p class="mt-1 truncate text-base font-black text-slate-950">{{ scheduleStats.next?.title || 'None scheduled' }}</p>
-                                        <p class="mt-1 text-xs font-semibold text-slate-600">{{ formatScheduleDate(scheduleStats.next?.start) }} · {{ formatScheduleTime(scheduleStats.next) }}</p>
-                                        <p class="mt-1 truncate text-xs text-slate-500">{{ scheduleStats.next?.extendedProps?.room || 'No room assigned' }}</p>
-                                    </div>
-                                </div>
-                            </article>
-                        </div>
+                        <ScheduleOverview :events="events" />
                     </div>
 
                     <div class="mt-5 flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
