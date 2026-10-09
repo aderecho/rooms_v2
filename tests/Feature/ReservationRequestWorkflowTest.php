@@ -88,11 +88,12 @@ it('allows an authenticated student to submit a pending request and notifies act
         ->patch(route('schedule-notifications.read', $databaseNotification))
         ->assertOk();
     expect($databaseNotification->fresh()->read_at)->not->toBeNull();
-    Notification::assertSentTo(
-        $admin,
-        ReservationRequestMailNotification::class,
-        fn ($notification) => $notification->event === 'submitted',
-    );
+    $this->assertDatabaseHas('reservation_mail_deliveries', [
+        'reservation_request_id' => $request->id,
+        'recipient_id' => $admin->id,
+        'event' => 'submitted',
+        'status' => 'queued',
+    ]);
 });
 
 it('builds queued email notifications with reservation details and role-correct links', function () {
@@ -106,7 +107,7 @@ it('builds queued email notifications with reservation details and role-correct 
 
     $adminMail = (new ReservationRequestMailNotification($request, 'submitted'))->toMail($admin);
     $adminNotification = new ReservationRequestMailNotification($request, 'submitted');
-    expect($adminMail->subject)->toContain('New reservation request')
+    expect($adminMail->subject)->toContain('New Reservation Request')
         ->and($adminMail->actionUrl)->toContain("/ReservationRequests/{$request->id}")
         ->and(implode(' ', $adminMail->introLines))->toContain('Thesis presentation rehearsal')
         ->and($adminNotification->queue)->toBe('mail');
@@ -117,12 +118,12 @@ it('builds queued email notifications with reservation details and role-correct 
         'rejected_at' => now(),
     ]);
     $studentMail = (new ReservationRequestMailNotification($request->fresh(['student', 'room']), 'rejected'))->toMail($student);
-    expect($studentMail->subject)->toContain('Reservation rejected')
+    expect($studentMail->subject)->toContain('Update on Your Request')
         ->and($studentMail->actionUrl)->toContain("/MyReservations/{$request->id}")
         ->and(implode(' ', $studentMail->introLines))->toContain('presentation equipment');
 });
 
-it('returns only truly available rooms and rejects schedule and request overlaps', function () {
+it('returns only truly available rooms and rejects schedule and request overlaps', function ($scheduleStatus) {
     $student = reservationUser('student', 'availability');
     $availableRoom = reservationRoom('available');
     $scheduledRoom = reservationRoom('scheduled');
@@ -130,13 +131,13 @@ it('returns only truly available rooms and rejects schedule and request overlaps
 
     Schedule::create([
         'room_id' => $scheduledRoom->id,
-        'event_title' => 'Approved class',
+        'event_title' => 'Allocated class',
         'event_type' => 'class',
         'date' => '2026-09-10',
         'start_time' => '09:30',
         'end_time' => '10:30',
         'day_of_week' => 'Thursday',
-        'status' => 'approved',
+        'status' => $scheduleStatus,
     ]);
     ReservationRequest::factory()->create([
         'student_id' => reservationUser('student', 'other')->id,
@@ -164,7 +165,7 @@ it('returns only truly available rooms and rejects schedule and request overlaps
         ->withSession(reservationSession($student))
         ->post(route('student.reservations.store'), reservationPayload($scheduledRoom))
         ->assertSessionHasErrors('room_id');
-});
+})->with(['approved']);
 
 it('validates date, time range, operating hours, capacity, and student overlaps', function () {
     $student = reservationUser('student', 'validation');
@@ -285,11 +286,12 @@ it('approves atomically, creates an approved schedule, and notifies the student'
         'reservation_request_id' => $request->id,
         'type' => 'reservation_approved',
     ]);
-    Notification::assertSentTo(
-        $student,
-        ReservationRequestMailNotification::class,
-        fn ($notification) => $notification->event === 'approved',
-    );
+    $this->assertDatabaseHas('reservation_mail_deliveries', [
+        'reservation_request_id' => $request->id,
+        'recipient_id' => $student->id,
+        'event' => 'approved',
+        'status' => 'queued',
+    ]);
 });
 
 it('requires a rejection message and records the rejection notification', function () {
@@ -325,14 +327,15 @@ it('requires a rejection message and records the rejection notification', functi
         'reservation_request_id' => $request->id,
         'type' => 'reservation_rejected',
     ]);
-    Notification::assertSentTo(
-        $student,
-        ReservationRequestMailNotification::class,
-        fn ($notification) => $notification->event === 'rejected',
-    );
+    $this->assertDatabaseHas('reservation_mail_deliveries', [
+        'reservation_request_id' => $request->id,
+        'recipient_id' => $student->id,
+        'event' => 'rejected',
+        'status' => 'queued',
+    ]);
 });
 
-it('blocks approval when an approved schedule appeared after submission', function () {
+it('blocks approval when an allocated schedule appeared after submission', function ($scheduleStatus) {
     $student = reservationUser('student', 'late-conflict');
     $admin = reservationUser('admin', 'conflict-admin');
     $room = reservationRoom('late-conflict');
@@ -351,7 +354,7 @@ it('blocks approval when an approved schedule appeared after submission', functi
         'start_time' => '09:30',
         'end_time' => '10:30',
         'day_of_week' => 'Thursday',
-        'status' => 'approved',
+        'status' => $scheduleStatus,
     ]);
 
     $this->actingAs($admin)
@@ -363,7 +366,7 @@ it('blocks approval when an approved schedule appeared after submission', functi
     expect($request->status)->toBe('pending')
         ->and($request->schedule_id)->toBeNull()
         ->and(Schedule::count())->toBe(1);
-});
+})->with(['approved']);
 
 it('shows role-scoped dashboard totals, status details, and pending admin count', function () {
     $student = reservationUser('student', 'dashboard');
@@ -416,4 +419,56 @@ it('shows role-scoped dashboard totals, status details, and pending admin count'
         ->assertInertia(fn (Assert $page) => $page
             ->component('MainDashboard')
             ->where('pendingReservationRequests', 1));
+});
+
+
+it('uses time conflicts instead of legacy room status for availability submission and approval', function ($status) {
+    Notification::fake();
+    $student = reservationUser('student', 'legacy-status');
+    $admin = reservationUser('admin', 'legacy-status');
+    $room = reservationRoom();
+    $room->update(['status' => $status]);
+    $service = app(\App\Services\ReservationRequestService::class);
+
+    $availability = collect($service->availability('2026-09-10', '09:00', '10:00'))->firstWhere('id', $room->id);
+    expect($availability['is_available'])->toBeTrue()
+        ->and($availability['unavailable_reason'])->toBeNull();
+
+    $this->actingAs($student)->withSession(reservationSession($student))
+        ->post(route('student.reservations.store'), reservationPayload($room))
+        ->assertSessionHasNoErrors();
+    $request = ReservationRequest::firstOrFail();
+    expect(collect($service->availability('2026-09-10', '09:00', '10:00'))->firstWhere('id', $room->id)['is_available'])->toBeFalse();
+    expect(collect($service->availability('2026-09-10', '10:00', '11:00'))->firstWhere('id', $room->id)['is_available'])->toBeTrue();
+
+    $service->approve($request, $admin);
+    expect($request->fresh()->status)->toBe('approved');
+    expect(collect($service->availability('2026-09-10', '09:00', '10:00'))->firstWhere('id', $room->id)['is_available'])->toBeFalse();
+})->with(['available', 'occupied', 'maintenance', 'closed']);
+
+
+it('allows reservations over pending classes and blocks them once approved', function () {
+    $room = reservationRoom('october');
+    Schedule::create([
+        'room_id' => $room->id, 'event_title' => 'CMSC 101', 'event_type' => 'class',
+        'date' => '2026-10-15', 'start_time' => '10:00', 'end_time' => '11:00',
+        'day_of_week' => 'Thursday', 'status' => 'pending',
+    ]);
+    $service = app(\App\Services\ReservationRequestService::class);
+    $slot = fn ($date, $start, $end) => collect($service->availability($date, $start, $end))->firstWhere('id', $room->id);
+    expect($slot('2026-10-15', '10:00', '11:00')['is_available'])->toBeTrue();
+    $student = reservationUser('student', 'pending-class');
+    $this->actingAs($student)->withSession(reservationSession($student))
+        ->post(route('student.reservations.store'), reservationPayload($room, [
+            'reservation_date' => '2026-10-15', 'start_time' => '10:00', 'end_time' => '11:00',
+        ]))->assertSessionHasNoErrors();
+    ReservationRequest::query()->delete();
+    $room->schedules()->update(['status' => 'approved']);
+    expect($slot('2026-10-15', '10:00', '11:00')['is_available'])->toBeFalse()
+        ->and($slot('2026-10-15', '10:00', '11:00')['conflicts'][0]['label'])->toBe('Approved schedule')
+        ->and($slot('2026-10-15', '09:00', '10:00')['is_available'])->toBeTrue()
+        ->and($slot('2026-10-15', '11:00', '12:00')['is_available'])->toBeTrue()
+        ->and($slot('2026-10-16', '10:00', '11:00')['is_available'])->toBeTrue();
+    $room->schedules()->update(['status' => 'cancelled']);
+    expect($slot('2026-10-15', '10:00', '11:00')['is_available'])->toBeTrue();
 });

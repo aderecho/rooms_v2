@@ -143,6 +143,7 @@ Route::middleware(['auth.session'])->group(function () {
     Route::get('/Schedule/Import/Template.xlsx', [ScheduleImportController::class, 'excelTemplate'])->name('schedules.import.template.excel');
     Route::get('/Schedule/room-equipment', [ScheduleController::class, 'roomEquipment'])->name('schedules.room-equipment');
     Route::post('/Schedule', [ScheduleController::class, 'store'])->name('schedules.store');
+    Route::patch('/Schedule/bulk-approve', [ScheduleController::class, 'bulkApprove'])->name('schedules.bulk-approve');
     Route::put('/Schedule/{schedule}', [ScheduleController::class, 'update'])->name('schedules.update');
     Route::patch('/Schedule/{schedule}/status', [ScheduleController::class, 'updateStatus'])->name('schedules.update-status');
     Route::delete('/Schedule/{schedule}', [ScheduleController::class, 'destroy'])->name('schedules.destroy');

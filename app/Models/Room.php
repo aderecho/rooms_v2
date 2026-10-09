@@ -10,6 +10,7 @@ class Room extends Model
     use HasFactory;
 
     protected $fillable = [
+        'is_public',
         'room_name',
         'room_code',
         'building_id',
@@ -28,7 +29,12 @@ class Room extends Model
         'equipments',
     ];
 
+    protected $attributes = [
+        'is_public' => 0,
+    ];
+
     protected $casts = [
+        'is_public' => 'integer',
         'facilities' => 'array',
         'equipments' => 'array', // Add this cast
     ];

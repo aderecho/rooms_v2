@@ -1,6 +1,8 @@
 <script setup>
 import ModalDialog from '@/Components/ModalDialog.vue'
-import { computed, ref } from 'vue';
+import axios from 'axios';
+import { router } from '@inertiajs/vue3';
+import { computed, ref, watch } from 'vue';
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
 import { faChevronLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons';
 import { isFinalAppointmentStatus, APPOINTMENT_STATUS_OPTIONS, getAppointmentStatusMeta, normalizeAppointmentStatus, getCurrentStatusPanelClass, isStatusTransitionDisabled, getAppointmentStatusLabel, getAppointmentStatusTextClass } from '@/utils/scheduleStatus';
@@ -231,21 +233,62 @@ const processedEvents = computed(() => {
     });
 });
 
+const search = ref('');
+const selectedIds = ref([]);
+const approving = ref(false);
+const approvalIds = ref([]);
+const approvalMessage = ref('');
+const approvalError = ref('');
+const filteredEvents = computed(() => {
+    const term = search.value.trim().toLowerCase();
+    return processedEvents.value.filter(item => !term || [item.title, item.room, item.building, item.college, item.subject, item.requester, item.description, item.startDate, item.status, item.eventType].some(value => String(value).toLowerCase().includes(term)));
+});
+const pendingEvents = computed(() => filteredEvents.value.filter(item => item.status === 'pending'));
+const pagePending = computed(() => paginatedEvents.value.filter(item => item.status === 'pending'));
+const pageSelected = computed(() => pagePending.value.length > 0 && pagePending.value.every(item => selectedIds.value.includes(item.id)));
+const togglePage = (checked) => {
+    const ids = pagePending.value.map(item => item.id);
+    selectedIds.value = checked ? [...new Set([...selectedIds.value, ...ids])] : selectedIds.value.filter(id => !ids.includes(id));
+};
+watch(search, () => { currentPage.value = 1; selectedIds.value = []; });
+watch(() => props.events, () => {
+    selectedIds.value = selectedIds.value.filter(id => pendingEvents.value.some(item => item.id === id));
+    currentPage.value = Math.min(currentPage.value, Math.max(1, totalPages.value));
+});
+const prepareApproval = (all) => {
+    approvalError.value = '';
+    approvalIds.value = all ? pendingEvents.value.map(item => item.id) : [...selectedIds.value];
+};
+const approve = async () => {
+    approving.value = true;
+    approvalError.value = '';
+    try {
+        const response = await axios.patch('/Schedule/bulk-approve', { ids: approvalIds.value });
+        approvalMessage.value = `${response.data.approved_count} schedules approved. ${response.data.rejected_count || 0} selected schedules rejected due to conflicts.`;
+        approvalIds.value = [];
+        selectedIds.value = [];
+        router.reload({ only: ['schedules'] });
+        window.dispatchEvent(new CustomEvent('appointment-notifications:refresh'));
+    } catch (error) {
+        approvalError.value = error.response?.data?.message || 'Approval failed. Please try again.';
+    } finally { approving.value = false; }
+};
+
 // Pagination computed properties
 const totalPages = computed(() => {
-    return Math.ceil(processedEvents.value.length / itemsPerPage.value);
+    return Math.ceil(filteredEvents.value.length / itemsPerPage.value);
 });
 
 const paginatedEvents = computed(() => {
     const start = (currentPage.value - 1) * itemsPerPage.value;
     const end = start + itemsPerPage.value;
-    return processedEvents.value.slice(start, end);
+    return filteredEvents.value.slice(start, end);
 });
 
 const showingRange = computed(() => {
     const start = (currentPage.value - 1) * itemsPerPage.value + 1;
-    const end = Math.min(currentPage.value * itemsPerPage.value, processedEvents.value.length);
-    const total = processedEvents.value.length;
+    const end = Math.min(currentPage.value * itemsPerPage.value, filteredEvents.value.length);
+    const total = filteredEvents.value.length;
     return { start, end, total };
 });
 
@@ -282,7 +325,7 @@ const resetPagination = () => {
                 <div class="modern-table-title">
                     Appointments
                 </div>
-                <p class="modern-table-subtitle">{{ processedEvents.length }} schedule records</p>
+                <p class="modern-table-subtitle">{{ filteredEvents.length }} of {{ processedEvents.length }} schedule records</p>
             </div>
             <div class="modern-table-controls">
                 <span>Rows</span>
@@ -295,6 +338,26 @@ const resetPagination = () => {
             </div>
         </div>
 
+        <div class="flex flex-wrap items-center gap-3 border-t border-slate-100 px-5 py-4">
+            <input v-model="search" type="search" aria-label="Search schedules" placeholder="Search appointment, room, building, college, date…" class="min-w-0 flex-1 rounded-lg border-slate-300 text-sm" />
+            <template v-if="isAdmin">
+                <span class="text-sm text-slate-600">{{ selectedIds.length }} selected</span>
+                <button :disabled="!selectedIds.length || approving" class="rounded-lg bg-[#005740] px-4 py-2 text-sm font-semibold text-white" @click="prepareApproval(false)">Approve selected</button>
+                <button :disabled="!pendingEvents.length || approving" class="rounded-lg border border-[#005740] px-4 py-2 text-sm font-semibold text-[#005740]" @click="prepareApproval(true)">Approve all pending ({{ pendingEvents.length }})</button>
+            </template>
+            <p v-if="approvalMessage" role="status" class="w-full text-sm text-emerald-800">{{ approvalMessage }}</p>
+        </div>
+        <ModalDialog v-if="approvalIds.length" class="fixed inset-0 z-[90] flex items-center justify-center bg-black/50">
+            <div class="mx-4 w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+                <h3 class="text-lg font-semibold text-[#005740]">Approve schedules</h3>
+                <p class="my-4 text-slate-700">Approve {{ approvalIds.length }} pending schedules? This includes matching selections across pages.</p>
+                <p v-if="approvalError" role="alert" class="mb-4 text-sm text-red-700">{{ approvalError }}</p>
+                <div class="flex justify-end gap-3">
+                    <button :disabled="approving" class="rounded-lg border px-4 py-2" @click="approvalIds = []">Cancel</button>
+                    <button :disabled="approving" class="rounded-lg bg-[#005740] px-4 py-2 text-white" @click="approve">{{ approving ? 'Approving…' : 'Confirm approval' }}</button>
+                </div>
+            </div>
+        </ModalDialog>
         <div class="overflow-x-auto">
             <table class="schedule-table min-w-full divide-y divide-slate-200" style="table-layout: fixed; width: 100%;">
                 <colgroup>
@@ -310,7 +373,7 @@ const resetPagination = () => {
                 </colgroup>
                 <thead class="!bg-[#005740] text-white">
                     <tr class="!bg-[#005740] hover:!bg-[#005740]">
-                        <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-[0.08em] whitespace-nowrap overflow-hidden text-ellipsis">Appointment</th>
+                        <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-[0.08em] whitespace-nowrap overflow-hidden text-ellipsis"><input v-if="isAdmin" type="checkbox" aria-label="Select pending schedules on this page" :checked="pageSelected" :indeterminate="!pageSelected && pagePending.some(item => selectedIds.includes(item.id))" :disabled="!pagePending.length || approving" class="mr-2 rounded" @change="togglePage($event.target.checked)" />Appointment</th>
                         <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-[0.08em] whitespace-nowrap overflow-hidden text-ellipsis">Room</th>
                         <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-[0.08em] whitespace-nowrap overflow-hidden text-ellipsis">Building</th>
                         <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-[0.08em] whitespace-nowrap overflow-hidden text-ellipsis">College</th>
@@ -331,6 +394,7 @@ const resetPagination = () => {
                     >
                         <!-- APPOINTMENT Column -->
                         <td class="px-4 py-4">
+                            <input v-if="isAdmin" v-model="selectedIds" type="checkbox" :value="item.id" :disabled="item.status !== 'pending' || approving" :aria-label="`Select ${item.title} on ${item.startDate}`" class="float-left mr-2 mt-1 rounded" @click.stop />
                             <div class="truncate text-sm font-semibold text-slate-950" :title="item.title">{{ item.title }}</div>
                             <div class="mt-1 truncate text-xs text-slate-500" :title="item.description">{{ item.description || 'No description' }}</div>
                         </td>
@@ -427,14 +491,14 @@ const resetPagination = () => {
                         </td>
                     </tr>
 
-                    <tr v-if="processedEvents.length === 0">
+                    <tr v-if="filteredEvents.length === 0">
                         <td :colspan="9" class="px-6 py-8 text-center text-gray-500">
                             <div class="flex flex-col items-center">
                                 <svg class="w-16 h-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                                 </svg>
-                                <p class="text-lg font-medium text-gray-600">No appointments scheduled</p>
-                                <p class="text-sm text-gray-500 mt-1">Click "New Appointment" to schedule one</p>
+                                <p class="text-lg font-medium text-gray-600">No matching schedules</p>
+                                <p class="text-sm text-gray-500 mt-1">Try another search or create a new schedule</p>
                             </div>
                         </td>
                     </tr>
@@ -443,7 +507,7 @@ const resetPagination = () => {
         </div>
 
         <!-- Pagination Footer -->
-        <div v-if="processedEvents.length > 0" class="flex flex-col items-center justify-between gap-3 border-t border-slate-200 bg-slate-50 px-5 py-4 sm:flex-row">
+        <div v-if="filteredEvents.length > 0" class="flex flex-col items-center justify-between gap-3 border-t border-slate-200 bg-slate-50 px-5 py-4 sm:flex-row">
             <div class="text-sm text-slate-600">
                 Showing {{ showingRange.start }} to {{ showingRange.end }} of {{ showingRange.total }} entries
             </div>

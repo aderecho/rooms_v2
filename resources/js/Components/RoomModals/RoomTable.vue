@@ -56,13 +56,14 @@
                                 <th class="px-4 py-3 text-left">College Name</th>
                                 <th class="px-4 py-3 text-left">Assigned User</th>
                                 <th class="px-4 py-3 text-left">Floor Number</th>
+                                <th class="px-4 py-3 text-left">Visibility</th>
                                 <th class="px-4 py-3 text-center">Actions</th>
                             </tr>
                         </thead>
 
                         <tbody>
                             <tr v-if="!rooms?.data?.length">
-                                <td colspan="6" class="text-center py-10 text-gray-500">
+                                <td colspan="7" class="text-center py-10 text-gray-500">
                                     No rooms found.
                                 </td>
                             </tr>
@@ -78,6 +79,7 @@
                                     }}
                                 </td>
                                 <td class="px-4 py-3">{{ room.floor_number ?? 'N/A' }}</td>
+                                <td class="px-4 py-3">{{ Number(room.is_public) === 1 ? 'Public' : 'Private' }}</td>
                                 <td class="px-4 py-3">
                                     <div class="flex justify-center gap-2">
                                         <IconButton icon="eye" @click="handleView(room)" />

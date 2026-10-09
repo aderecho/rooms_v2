@@ -16,6 +16,8 @@ class ReservationRequest extends Model
 
     public const STATUS_REJECTED = 'rejected';
 
+    protected $attributes = ['status' => self::STATUS_PENDING];
+
     protected $fillable = [
         'student_id',
         'room_id',
@@ -41,6 +43,16 @@ class ReservationRequest extends Model
         'approved_at' => 'datetime',
         'rejected_at' => 'datetime',
     ];
+
+    public function history()
+    {
+        return $this->hasMany(ReservationStatusHistory::class)->orderBy('id');
+    }
+
+    public function mailDeliveries()
+    {
+        return $this->hasMany(ReservationMailDelivery::class);
+    }
 
     public function student(): BelongsTo
     {

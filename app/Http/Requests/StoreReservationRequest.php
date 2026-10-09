@@ -24,6 +24,15 @@ class StoreReservationRequest extends FormRequest
         ];
     }
 
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator) {
+            if (! filter_var($this->user()?->email, FILTER_VALIDATE_EMAIL)) {
+                $validator->errors()->add('email', 'Your account needs a valid email address before making a reservation.');
+            }
+        });
+    }
+
     public function messages(): array
     {
         return [

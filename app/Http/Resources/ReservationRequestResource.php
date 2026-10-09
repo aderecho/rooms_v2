@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Models\ReservationRequest;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -20,6 +21,10 @@ class ReservationRequestResource extends JsonResource
                 'id' => $this->student->id,
                 'name' => $studentName,
                 'email' => $this->student->email,
+                'account_identifier' => $this->student->username,
+                'contact_number' => $this->student->contact_number,
+                'college' => $this->student->relationLoaded('college') ? $this->student->college?->college_name : null,
+                'department' => $this->student->relationLoaded('department') ? $this->student->department?->department_name : null,
             ] : null,
             'room' => $this->room ? [
                 'id' => $this->room->id,
@@ -46,6 +51,14 @@ class ReservationRequestResource extends JsonResource
             'admin_response' => $this->admin_response,
             'schedule_id' => $this->schedule_id,
             'created_at' => $this->created_at?->toIso8601String(),
+            'history' => $this->whenLoaded('history', fn () => $this->history->map(fn ($entry) => [
+                'id' => $entry->id, 'from_status' => $entry->from_status, 'to_status' => $entry->to_status,
+                'actor' => $entry->actor ? (trim($entry->actor->first_name.' '.$entry->actor->last_name) ?: $entry->actor->username) : null, 'remarks' => $entry->remarks, 'created_at' => $entry->created_at->toIso8601String(),
+            ])),
+            'mail_deliveries' => $this->when($request->user()?->can('viewAny', ReservationRequest::class) && $this->relationLoaded('mailDeliveries'), fn () => $this->mailDeliveries->map(fn ($delivery) => [
+                'id' => $delivery->id, 'event' => $delivery->event, 'status' => $delivery->status,
+                'attempts' => $delivery->attempts, 'sent_at' => $delivery->sent_at?->toIso8601String(),
+            ])),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];
     }

@@ -2,12 +2,15 @@
 
 namespace App\Services;
 
+use App\Models\ReservationMailDelivery;
 use App\Models\ReservationRequest;
 use App\Models\ScheduleNotification;
 use App\Models\UserAccount;
 use App\Notifications\ReservationRequestMailNotification;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
 use Throwable;
 
 class ReservationNotificationService
@@ -48,6 +51,13 @@ class ReservationNotificationService
             );
         }
 
+        foreach ($admins as $admin) {
+            $this->recordMail($request, 'submitted', $admin->email, $admin->id);
+        }
+        foreach (config('reservations.additional_recipients', []) as $email) {
+            $this->recordMail($request, 'submitted', $email);
+        }
+
         return $admins;
     }
 
@@ -58,6 +68,7 @@ class ReservationNotificationService
             return;
         }
 
+        $this->recordMail($request, $event, $request->student->email, $request->student->id);
         $approved = $event === 'approved';
         $roomName = $request->room?->room_name ?? $request->room?->room_code ?? 'your selected room';
         $title = $approved ? 'Reservation approved' : 'Reservation rejected';
@@ -77,16 +88,58 @@ class ReservationNotificationService
 
     public function queueAdminEmails(Collection $admins, ReservationRequest $request): void
     {
-        foreach ($admins as $admin) {
-            $this->queueMailSafely($admin, $request, 'submitted');
-        }
+        $this->queueRecordedEmails($request, 'submitted');
     }
 
     public function queueStudentEmail(ReservationRequest $request, string $event): void
     {
-        $request->loadMissing('student');
-        if ($request->student) {
-            $this->queueMailSafely($request->student, $request, $event);
+        $this->queueRecordedEmails($request, $event);
+    }
+
+    private function recordMail(ReservationRequest $request, string $event, ?string $email, ?int $recipientId = null): void
+    {
+        if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            Log::warning('Reservation mail recipient has no valid email.', ['reservation_request_id' => $request->id, 'recipient_id' => $recipientId]);
+
+            return;
+        }
+        ReservationMailDelivery::firstOrCreate([
+            'reservation_request_id' => $request->id,
+            'event' => $event,
+            'recipient_email' => mb_strtolower(trim($email)),
+        ], ['recipient_id' => $recipientId]);
+    }
+
+    private function queueRecordedEmails(ReservationRequest $request, string $event): void
+    {
+        // Defers queue publication until the outermost transaction commits.
+        DB::afterCommit(function () use ($request, $event) {
+            ReservationMailDelivery::where('reservation_request_id', $request->id)
+                ->where('event', $event)->where('status', 'pending')
+                ->each(fn ($delivery) => $this->dispatchDelivery($delivery));
+        });
+    }
+
+    public function dispatchDelivery(ReservationMailDelivery $delivery): void
+    {
+        $claimed = ReservationMailDelivery::whereKey($delivery->id)->where('status', 'pending')
+            ->update(['status' => 'queued', 'queued_at' => now(), 'last_error' => null]);
+        if (! $claimed) {
+            return;
+        }
+        $delivery->refresh();
+        try {
+            $notification = new ReservationRequestMailNotification($delivery->reservationRequest, $delivery->event, $delivery->id);
+            // Route to the captured address, including configured additional recipients.
+            Notification::route('mail', $delivery->recipient_email)->notify($notification);
+            ReservationMailDelivery::whereKey($delivery->id)->where('status', '!=', 'sent')
+                ->update(['status' => 'queued', 'queued_at' => now(), 'last_error' => null]);
+        } catch (Throwable $exception) {
+            ReservationMailDelivery::whereKey($delivery->id)->where('status', '!=', 'sent')->update(['status' => 'pending', 'last_error' => $exception::class]);
+            Log::error('Reservation email could not be queued.', [
+                'delivery_id' => $delivery->id, 'reservation_request_id' => $delivery->reservation_request_id,
+                'event' => $delivery->event, 'exception' => $exception::class,
+            ]);
         }
     }
 
@@ -107,23 +160,5 @@ class ReservationNotificationService
             'message' => $message,
             'action_url' => $actionUrl,
         ]);
-    }
-
-    private function queueMailSafely(
-        UserAccount $recipient,
-        ReservationRequest $request,
-        string $event,
-    ): void {
-        try {
-            $recipient->notify(new ReservationRequestMailNotification($request, $event));
-        } catch (Throwable $exception) {
-            Log::error('Reservation email could not be queued.', [
-                'reservation_request_id' => $request->id,
-                'recipient_id' => $recipient->id,
-                'event' => $event,
-                'exception' => $exception::class,
-                'message' => $exception->getMessage(),
-            ]);
-        }
     }
 }
