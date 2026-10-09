@@ -73,3 +73,17 @@ it('approves one selected schedule and automatically rejects its overlapping pen
         ->assertOk()->assertJsonPath('approved_count', 1)->assertJsonPath('rejected_count', 1);
     expect($winner->fresh()->status)->toBe('approved')->and($other->fresh()->status)->toBe('rejected');
 });
+
+
+it('approves all matching pending records beyond the first page in bounded chunks', function () {
+    $admin = UserAccount::factory()->create(['user_type' => 'admin', 'account_status' => 'active']);
+    $this->actingAs($admin)->withSession(['user' => LoginController::sessionPayload($admin)]);
+    for ($i = 0; $i < 105; $i++) {
+        bulkSchedule()->update(['event_title' => 'Matching workshop']);
+    }
+    $unmatched = bulkSchedule();
+    $this->patchJson('/Schedule/bulk-approve', ['all' => true, 'search' => 'MATCHING WORKSHOP'])
+        ->assertOk()->assertJsonPath('approved_count', 105);
+    expect($unmatched->fresh()->status)->toBe('pending');
+    expect(Schedule::where('status', 'approved')->count())->toBe(105);
+});

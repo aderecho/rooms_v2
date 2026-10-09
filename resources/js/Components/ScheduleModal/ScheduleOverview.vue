@@ -1,16 +1,17 @@
 <script setup>
 import { computed } from 'vue';
-const props = defineProps({ events: { type: Array, default: () => [] } });
-const count = (status) => props.events.filter(event => (event.extendedProps?.status || 'pending') === status).length;
+const props = defineProps({ events: { type: Array, default: () => [] }, counts: { type: Object, default: () => ({}) } });
+const count = (status) => props.counts[status] !== undefined ? Number(props.counts[status]) : props.events.filter(event => (event.extendedProps?.status || 'pending') === status).length;
+const total = computed(() => Object.keys(props.counts).length ? Object.values(props.counts).reduce((sum, value) => sum + Number(value), 0) : props.events.length);
 const metrics = computed(() => [
-    { label: 'All Schedules', value: props.events.length, description: 'Total schedule records', color: '#005740', icon: '▤', bar: 1 },
+    { label: 'All Schedules', value: total.value, description: 'Total schedule records', color: '#005740', icon: '▤', bar: 1 },
     { label: 'Pending', value: count('pending'), description: 'Awaiting your review', color: '#df9414', icon: '◷', bar: 0 },
     { label: 'Approved', value: count('approved'), description: 'Confirmed schedules', color: '#237c60', icon: '✓', bar: 1 },
     { label: 'Rejected', value: count('rejected'), description: 'Schedules declined', color: '#bd3935', icon: '×', bar: 2 },
 ]);
 const distribution = computed(() => [metrics.value[1], metrics.value[2], metrics.value[3]]);
 const distributionTotal = computed(() => distribution.value.reduce((sum, item) => sum + item.value, 0));
-const otherCount = computed(() => props.events.length - distributionTotal.value);
+const otherCount = computed(() => total.value - distributionTotal.value);
 const max = computed(() => Math.max(1, ...distribution.value.map(item => item.value)));
 const vertices = [[110, 35], [184, 163], [36, 163]];
 const points = (scale) => vertices.map(([x, y]) => `${110 + (x - 110) * scale},${120 + (y - 120) * scale}`).join(' ');

@@ -2,7 +2,7 @@
 import ModalDialog from '@/Components/ModalDialog.vue'
 import axios from 'axios';
 import { router } from '@inertiajs/vue3';
-import { computed, ref, watch } from 'vue';
+import { computed, ref, watch, onUnmounted } from 'vue';
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
 import { faChevronLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons';
 import { isFinalAppointmentStatus, APPOINTMENT_STATUS_OPTIONS, getAppointmentStatusMeta, normalizeAppointmentStatus, getCurrentStatusPanelClass, isStatusTransitionDisabled, getAppointmentStatusLabel, getAppointmentStatusTextClass } from '@/utils/scheduleStatus';
@@ -14,6 +14,9 @@ const icons = {
 };
 
 const props = defineProps({
+    pagination: { type: Object, default: () => null },
+    filters: { type: Object, default: () => ({}) },
+    matchingPendingCount: { type: Number, default: 0 },
     events: {
         type: Array,
         required: true
@@ -141,8 +144,8 @@ const getStatusOptionPanelClass = (option) => {
 };
 
 // Pagination state
-const currentPage = ref(1);
-const itemsPerPage = ref(10);
+const currentPage = ref(props.pagination?.current_page || 1);
+const itemsPerPage = ref(props.pagination?.per_page || 10);
 
 const handleAction = (eventName, eventObject, e) => {
     e.stopPropagation();
@@ -233,14 +236,16 @@ const processedEvents = computed(() => {
     });
 });
 
-const search = ref('');
+const search = ref(props.filters.search || '');
 const selectedIds = ref([]);
 const approving = ref(false);
 const approvalIds = ref([]);
+const approvalAll = ref(false);
+const approvalCount = ref(0);
 const approvalMessage = ref('');
 const approvalError = ref('');
 const filteredEvents = computed(() => {
-    const term = search.value.trim().toLowerCase();
+    const term = props.pagination ? '' : search.value.trim().toLowerCase();
     return processedEvents.value.filter(item => !term || [item.title, item.room, item.building, item.college, item.subject, item.requester, item.description, item.startDate, item.status, item.eventType].some(value => String(value).toLowerCase().includes(term)));
 });
 const pendingEvents = computed(() => filteredEvents.value.filter(item => item.status === 'pending'));
@@ -250,24 +255,39 @@ const togglePage = (checked) => {
     const ids = pagePending.value.map(item => item.id);
     selectedIds.value = checked ? [...new Set([...selectedIds.value, ...ids])] : selectedIds.value.filter(id => !ids.includes(id));
 };
-watch(search, () => { currentPage.value = 1; selectedIds.value = []; });
+let searchTimer;
+const visitPage = (page = 1) => {
+    router.get('/Schedule', { search: search.value, per_page: Number(itemsPerPage.value), page }, {
+        only: ['schedules', 'schedulePagination', 'scheduleFilters', 'scheduleCounts', 'matchingPendingCount'],
+        preserveState: true, preserveScroll: true,
+    });
+};
+watch(search, () => {
+    currentPage.value = 1; selectedIds.value = [];
+    if (props.pagination) { clearTimeout(searchTimer); searchTimer = setTimeout(() => visitPage(), 300); }
+});
+onUnmounted(() => clearTimeout(searchTimer));
+watch(() => props.pagination, value => { if (value) currentPage.value = value.current_page; });
 watch(() => props.events, () => {
-    selectedIds.value = selectedIds.value.filter(id => pendingEvents.value.some(item => item.id === id));
+    if (!props.pagination) selectedIds.value = selectedIds.value.filter(id => pendingEvents.value.some(item => item.id === id));
     currentPage.value = Math.min(currentPage.value, Math.max(1, totalPages.value));
 });
 const prepareApproval = (all) => {
     approvalError.value = '';
+    approvalAll.value = all;
     approvalIds.value = all ? pendingEvents.value.map(item => item.id) : [...selectedIds.value];
+    approvalCount.value = all && props.pagination ? props.matchingPendingCount : approvalIds.value.length;
 };
 const approve = async () => {
     approving.value = true;
     approvalError.value = '';
     try {
-        const response = await axios.patch('/Schedule/bulk-approve', { ids: approvalIds.value });
+        const response = await axios.patch('/Schedule/bulk-approve', approvalAll.value && props.pagination ? { all: true, search: search.value } : { ids: approvalIds.value });
         approvalMessage.value = `${response.data.approved_count} schedules approved. ${response.data.rejected_count || 0} selected schedules rejected due to conflicts.`;
         approvalIds.value = [];
+        approvalCount.value = 0;
         selectedIds.value = [];
-        router.reload({ only: ['schedules'] });
+        router.reload({ only: ['schedules', 'schedulePagination', 'scheduleFilters', 'scheduleCounts', 'matchingPendingCount'] });
         window.dispatchEvent(new CustomEvent('appointment-notifications:refresh'));
     } catch (error) {
         approvalError.value = error.response?.data?.message || 'Approval failed. Please try again.';
@@ -276,16 +296,18 @@ const approve = async () => {
 
 // Pagination computed properties
 const totalPages = computed(() => {
-    return Math.ceil(filteredEvents.value.length / itemsPerPage.value);
+    return props.pagination?.last_page || Math.ceil(filteredEvents.value.length / itemsPerPage.value);
 });
 
 const paginatedEvents = computed(() => {
+    if (props.pagination) return filteredEvents.value;
     const start = (currentPage.value - 1) * itemsPerPage.value;
     const end = start + itemsPerPage.value;
     return filteredEvents.value.slice(start, end);
 });
 
 const showingRange = computed(() => {
+    if (props.pagination) return { start: props.pagination.from || 0, end: props.pagination.to || 0, total: props.pagination.total };
     const start = (currentPage.value - 1) * itemsPerPage.value + 1;
     const end = Math.min(currentPage.value * itemsPerPage.value, filteredEvents.value.length);
     const total = filteredEvents.value.length;
@@ -295,18 +317,21 @@ const showingRange = computed(() => {
 // Pagination functions
 const nextPage = () => {
     if (currentPage.value < totalPages.value) {
+        if (props.pagination) return visitPage(currentPage.value + 1);
         currentPage.value++;
     }
 };
 
 const prevPage = () => {
     if (currentPage.value > 1) {
+        if (props.pagination) return visitPage(currentPage.value - 1);
         currentPage.value--;
     }
 };
 
 const goToPage = (page) => {
     if (page >= 1 && page <= totalPages.value) {
+        if (props.pagination) return visitPage(page);
         currentPage.value = page;
     }
 };
@@ -314,6 +339,7 @@ const goToPage = (page) => {
 // Reset pagination when events change
 const resetPagination = () => {
     currentPage.value = 1;
+    if (props.pagination) visitPage();
 };
 </script>
 
@@ -325,7 +351,7 @@ const resetPagination = () => {
                 <div class="modern-table-title">
                     Appointments
                 </div>
-                <p class="modern-table-subtitle">{{ filteredEvents.length }} of {{ processedEvents.length }} schedule records</p>
+                <p class="modern-table-subtitle">{{ pagination ? pagination.total : filteredEvents.length }} schedule records</p>
             </div>
             <div class="modern-table-controls">
                 <span>Rows</span>
@@ -343,17 +369,17 @@ const resetPagination = () => {
             <template v-if="isAdmin">
                 <span class="text-sm text-slate-600">{{ selectedIds.length }} selected</span>
                 <button :disabled="!selectedIds.length || approving" class="rounded-lg bg-[#005740] px-4 py-2 text-sm font-semibold text-white" @click="prepareApproval(false)">Approve selected</button>
-                <button :disabled="!pendingEvents.length || approving" class="rounded-lg border border-[#005740] px-4 py-2 text-sm font-semibold text-[#005740]" @click="prepareApproval(true)">Approve all pending ({{ pendingEvents.length }})</button>
+                <button :disabled="!(pagination ? matchingPendingCount : pendingEvents.length) || approving" class="rounded-lg border border-[#005740] px-4 py-2 text-sm font-semibold text-[#005740]" @click="prepareApproval(true)">Approve all pending ({{ pagination ? matchingPendingCount : pendingEvents.length }})</button>
             </template>
             <p v-if="approvalMessage" role="status" class="w-full text-sm text-emerald-800">{{ approvalMessage }}</p>
         </div>
-        <ModalDialog v-if="approvalIds.length" class="fixed inset-0 z-[90] flex items-center justify-center bg-black/50">
+        <ModalDialog v-if="approvalCount" class="fixed inset-0 z-[90] flex items-center justify-center bg-black/50">
             <div class="mx-4 w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
                 <h3 class="text-lg font-semibold text-[#005740]">Approve schedules</h3>
-                <p class="my-4 text-slate-700">Approve {{ approvalIds.length }} pending schedules? This includes matching selections across pages.</p>
+                <p class="my-4 text-slate-700">Approve {{ approvalCount }} pending schedules? This includes matching selections across pages.</p>
                 <p v-if="approvalError" role="alert" class="mb-4 text-sm text-red-700">{{ approvalError }}</p>
                 <div class="flex justify-end gap-3">
-                    <button :disabled="approving" class="rounded-lg border px-4 py-2" @click="approvalIds = []">Cancel</button>
+                    <button :disabled="approving" class="rounded-lg border px-4 py-2" @click="approvalIds = []; approvalCount = 0">Cancel</button>
                     <button :disabled="approving" class="rounded-lg bg-[#005740] px-4 py-2 text-white" @click="approve">{{ approving ? 'Approving…' : 'Confirm approval' }}</button>
                 </div>
             </div>
@@ -531,7 +557,7 @@ const resetPagination = () => {
                 <!-- Page Numbers -->
                 <div class="flex items-center space-x-1">
                     <button
-                        v-for="page in totalPages"
+                        v-for="page in Array.from({ length: Math.min(totalPages, 5) }, (_, index) => Math.max(1, Math.min(currentPage - 2, totalPages - 4)) + index)"
                         :key="page"
                         @click="goToPage(page)"
                     :class="[

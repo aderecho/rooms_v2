@@ -1,6 +1,6 @@
 <script setup>
 import ModalDialog from '@/Components/ModalDialog.vue'
-import { ref, computed, watchEffect, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watchEffect, watch, onMounted, onUnmounted } from 'vue';
 import axios from 'axios';
 import { router } from '@inertiajs/vue3';
 
@@ -29,6 +29,10 @@ import { notifyDialog } from '@/Composables/useAppDialog.js';
 
 const props = defineProps({
     schedules: { type: Array, default: () => [] },
+    schedulePagination: { type: Object, default: () => null },
+    scheduleFilters: { type: Object, default: () => ({}) },
+    scheduleCounts: { type: Object, default: () => ({}) },
+    matchingPendingCount: { type: Number, default: 0 },
     rooms: { type: Array, default: () => [] },
     roomEquipmentQuantities: { type: Object, default: () => ({}) },
     globalEquipmentQuantities: { type: Object, default: () => ({}) },
@@ -89,7 +93,7 @@ const dbScheduleToEvent = (s) => {
     const datePart = (s.date || '').slice(0, 10);
     const start = createDate(datePart, (s.start_time || '00:00').slice(0, 5));
     const end = createDate(datePart, (s.end_time || '00:00').slice(0, 5));
-    const roomDefaultEquipment = parseRoomEquipments(s.room?.equipments);
+    const roomDefaultEquipment = parseRoomEquipments(s.room?.equipments ?? props.rooms.find(room => room.id === s.room_id)?.equipments);
     const scheduleEquipment = Array.isArray(s.equipment_needed) ? s.equipment_needed : [];
     return {
         id: s.id,
@@ -284,6 +288,42 @@ const showCalendarView = () => {
 // Calendar State
 const currentCalendarDate = ref(new Date());
 const currentCalendarMode = ref('month');
+const calendarEvents = ref([]);
+const calendarLoading = ref(false);
+const calendarError = ref('');
+let calendarRequest = 0;
+const loadCalendar = async () => {
+    const token = ++calendarRequest;
+    calendarLoading.value = true;
+    calendarError.value = '';
+    const date = currentCalendarDate.value;
+    const start = new Date(date.getFullYear(), date.getMonth(), 1);
+    start.setDate(start.getDate() - start.getDay());
+    const end = new Date(start);
+    end.setDate(end.getDate() + 41);
+    const format = value => `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;
+    try {
+        const loaded = [];
+        let page = 1;
+        let last = 1;
+        do {
+            const response = await axios.get('/Schedule/calendar-data', { params: { start: format(start), end: format(end), page } });
+            if (token !== calendarRequest) return;
+            loaded.push(...response.data.data.map(dbScheduleToEvent));
+            last = response.data.last_page;
+            page++;
+        } while (page <= last);
+        calendarEvents.value = loaded;
+    } catch (error) {
+        if (token === calendarRequest) calendarError.value = 'Unable to load calendar schedules. Please try again.';
+    } finally {
+        if (token === calendarRequest) calendarLoading.value = false;
+    }
+};
+watch([currentView, currentCalendarDate], () => {
+    if (currentView.value === 'calendar') loadCalendar();
+});
+
 const nextEventId = computed(() =>
     (events.value.length > 0 ? Math.max(...events.value.map(e => e.id)) : 0) + 1
 );
@@ -397,8 +437,9 @@ const handleStatusUpdate = async ({ event, status, onComplete, onError }) => {
 };
 
 const refreshSchedulesFromServer = () => {
+    if (currentView.value === 'calendar') loadCalendar();
     router.reload({
-        only: ['schedules'],
+        only: ['schedules', 'schedulePagination', 'scheduleFilters', 'scheduleCounts', 'matchingPendingCount'],
         preserveScroll: true,
         preserveState: true,
     });
@@ -643,6 +684,7 @@ const confirmDeleteEvent = async () => {
         }
 
         resetDeleteConfirmModal();
+        refreshSchedulesFromServer();
     } catch (err) {
         console.error('Failed to delete appointment:', err);
         deleteConfirm.value.loading = false;
@@ -675,12 +717,17 @@ const selectEventInCalendar = (event) => {
     openEventViewer(event);
 };
 
-const openAppointmentById = (scheduleId) => {
+const openAppointmentById = async (scheduleId) => {
     const id = Number(scheduleId);
     if (!id) return false;
 
-    const event = events.value.find((item) => item.dbId === id || item.id === id);
-    if (!event) return false;
+    let event = events.value.find((item) => item.dbId === id || item.id === id);
+    if (!event) {
+        try {
+            const response = await axios.get(`/Schedule/details/${id}`);
+            event = dbScheduleToEvent(response.data);
+        } catch { return false; }
+    }
 
     currentView.value = 'table';
     openEventViewer(event);
@@ -756,7 +803,7 @@ watchEffect(() => {
                             </span>
                         </div>
 
-                        <ScheduleOverview :events="events" />
+                        <ScheduleOverview :events="events" :counts="scheduleCounts" />
                     </div>
 
                     <div class="mt-5 flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
@@ -807,9 +854,11 @@ watchEffect(() => {
                 </section>
 
                 <!-- Main Content -->
+                <p v-if="currentView === 'calendar' && calendarLoading" role="status" class="mb-3 text-sm text-slate-600">Loading calendar schedules…</p>
+                <p v-if="currentView === 'calendar' && calendarError" role="alert" class="mb-3 text-sm text-red-700">{{ calendarError }} <button class="underline" @click="loadCalendar">Retry</button></p>
                 <TableComponent
                     v-if="currentView === 'table'"
-                    :events="events"
+                    :events="events" :pagination="schedulePagination" :filters="scheduleFilters" :matching-pending-count="matchingPendingCount"
                     :is-admin="isAdminAccount"
                     @view-details="openEventViewer"
                     @edit-event="handleEditEvent"
@@ -818,7 +867,7 @@ watchEffect(() => {
                     @row-clicked="openEventViewer"
                 />
 
-                <CalendarView v-else :data="events" :initial-date="currentCalendarDate"
+                <CalendarView v-else :data="calendarEvents" :initial-date="currentCalendarDate"
                     :initial-mode="currentCalendarMode" :ListViewComponent="TableComponent"
                     :MonthGridViewComponent="MonthGridView" :TimeGridViewComponent="TimeGridView"
                     @update:date="(date) => currentCalendarDate = date"
