@@ -136,16 +136,22 @@ class TermController extends Controller
         ]);
     }
 
-    public function getCalendar($id)
+    public function getCalendar(Request $request, $id)
     {
         $term = Term::findOrFail($id);
 
+        $validated = $request->validate([
+            'month' => 'nullable|date_format:Y-m',
+            'per_page' => 'nullable|integer|min:1|max:200',
+            'page' => 'nullable|integer|min:1',
+        ]);
+        $month = \Carbon\CarbonImmutable::createFromFormat('!Y-m', $validated['month'] ?? now()->format('Y-m'));
         $schedules = $term->schedules()
-            ->with(['room', 'faculty'])
+            ->with(['room:id,room_name,room_code', 'faculty:id,first_name,middle_name,last_name'])
             ->where('status', 'approved')
-            ->orderBy('date')
-            ->orderBy('start_time')
-            ->get();
+            ->whereBetween('date', [$month->toDateString(), $month->endOfMonth()->toDateString()])
+            ->orderBy('date')->orderBy('start_time')->orderBy('id')
+            ->paginate((int) ($validated['per_page'] ?? 100), ['*'], 'page', (int) ($validated['page'] ?? 1));
 
         // Group schedules by month for calendar view
         $calendar = [];
@@ -165,6 +171,9 @@ class TermController extends Controller
         return response()->json([
             'term' => $term,
             'calendar' => $calendar,
+            'meta' => ['month' => $month->format('Y-m'), 'total' => $schedules->total(),
+                'current_page' => $schedules->currentPage(), 'last_page' => $schedules->lastPage(),
+                'per_page' => $schedules->perPage()],
         ]);
     }
 

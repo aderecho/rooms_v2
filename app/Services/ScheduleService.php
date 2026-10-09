@@ -181,15 +181,15 @@ class ScheduleService
         return true;
     }
 
-    public function getRoomSchedules($roomId, $date = null)
+    public function getRoomSchedules($roomId, $date = null, int $perPage = 100)
     {
         $date = $date ?: now()->format('Y-m-d');
 
         return Schedule::where('room_id', $roomId)
             ->where('date', $date)
             ->where('status', 'approved')
-            ->orderBy('start_time')
-            ->get();
+            ->orderBy('start_time')->orderBy('id')
+            ->paginate(max(1, min(200, $perPage)));
     }
 
     public function approveSchedule($scheduleId)

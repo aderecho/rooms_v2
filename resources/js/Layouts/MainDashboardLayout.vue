@@ -1,6 +1,7 @@
 <script setup>
 import ModalDialog from '@/Components/ModalDialog.vue'
-import { computed, onMounted, ref } from 'vue';
+import { useScheduleLoader } from '@/Composables/useScheduleLoader';
+import { computed, onMounted, ref, watch } from 'vue';
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import IconButton from '@/Components/IconButton.vue';
 import MessageFunction from '@/Components/MessageFunction.vue';
@@ -61,7 +62,11 @@ const users = computed(() => page.props.users || []);
 
 const roomRecords = computed(() => rooms.value?.data || []);
 const allRoomRecords = computed(() => page.props.allRooms || roomRecords.value);
-const calendarSchedules = computed(() => page.props.calendarSchedules || []);
+const dashboardLoader = useScheduleLoader();
+const usageLoader = useScheduleLoader();
+const previewLoader = useScheduleLoader();
+const detailsLoader = useScheduleLoader();
+const calendarSchedules = dashboardLoader.records;
 
 const parseDateKey = (dateKey) => {
     if (!dateKey) return null;
@@ -167,7 +172,7 @@ const projectItems = computed(() => {
         id: room.id ?? index,
         title: room.room_name || `Room ${index + 1}`,
         subtitle: room.college?.college_name || room.location || 'Campus room',
-        meta: room.schedules?.length ? `${room.schedules.length} schedules` : 'No schedules yet',
+        meta: room.schedules_count ? `${room.schedules_count} schedules` : 'No schedules yet',
         room,
         color: ['#005740', '#256b57', '#6b7280', '#3f7d68', '#23483c'][index % 5],
     }));
@@ -306,7 +311,7 @@ const scheduleMinutes = (time) => {
 };
 
 const roomUsageSchedulesForDay = (date) => roomUsageRooms.value.flatMap((room, roomIndex) => (
-    (room.schedules || [])
+    usageLoader.records.value.filter(schedule => schedule.room_id === room.id)
         .filter((schedule) => schedule.date === date && String(schedule.status || '').toLowerCase() !== 'cancelled')
         .map((schedule) => {
             const scheduleStart = scheduleMinutes(schedule.start_time);
@@ -379,7 +384,7 @@ const dashboardCalendar = computed(() => {
     };
 });
 
-const roomPreviewSchedules = computed(() => currentPreviewRoom.value?.schedules || []);
+const roomPreviewSchedules = previewLoader.records;
 const roomCalendarReference = ref(new Date());
 
 const roomScheduleCalendar = computed(() => {
@@ -586,6 +591,7 @@ const clearSearch = () => {
 const handleViewDetails = (room) => {
     currentViewedDetails.value = room || null;
     isDetailsModalVisible.value = true;
+    detailsLoader.load({ month: toDateKey(new Date()).slice(0, 7), room_id: room.id });
 };
 
 const openRoomPreviewPanel = (room, returnToAllRooms = false) => {
@@ -610,6 +616,7 @@ const openScheduleRoom = (schedule) => {
 const closeRoomPreviewPanel = () => {
     isRoomPreviewPanelVisible.value = false;
     currentPreviewRoom.value = null;
+    previewLoader.cancel();
 
     if (shouldReturnToAllRoomsPanel.value) {
         isAllRoomsPanelVisible.value = true;
@@ -671,6 +678,9 @@ const submitInlineSchedule = () => {
             onSuccess: () => {
                 triggerToast('create', { message: 'Schedule request created successfully.' });
                 populateScheduleForm(currentPreviewRoom.value);
+                loadRoomPreview();
+                if (activeDashboardTab.value === 'room-usage') loadRoomUsage();
+                if (activeDashboardTab.value === 'calendar') loadDashboardCalendar();
             },
             onError: () => {
                 triggerToast('error', { message: 'Unable to create schedule. Please check the schedule fields.' });
@@ -696,6 +706,7 @@ const handleDeleteRoom = async (room) => {
 const closeDetailsModal = () => {
     isDetailsModalVisible.value = false;
     currentViewedDetails.value = null;
+    detailsLoader.cancel();
 };
 
 const openCreateRoomPanel = () => {
@@ -747,6 +758,27 @@ const goToCardTarget = (target) => {
     if (target) router.visit(target, { viewTransition: true });
 };
 
+const loadRoomUsage = () => usageLoader.load({
+    start: toDateKey(startOfRoomUsageWeek(roomUsageReference.value)),
+    end: toDateKey(addDays(startOfRoomUsageWeek(roomUsageReference.value), 6)),
+    building_id: roomUsageBuilding.value === 'all' ? undefined : roomUsageBuilding.value,
+});
+const loadDashboardCalendar = () => dashboardLoader.load({ start: page.props.calendarStart, end: page.props.calendarEnd });
+const loadRoomPreview = () => {
+    if (!isRoomPreviewPanelVisible.value || !currentPreviewRoom.value) return;
+    const reference = roomCalendarReference.value;
+    previewLoader.load({ month: `${reference.getFullYear()}-${String(reference.getMonth() + 1).padStart(2, '0')}`, room_id: currentPreviewRoom.value.id });
+};
+watch([activeDashboardTab, roomUsageReference, roomUsageBuilding], () => {
+    if (activeDashboardTab.value === 'room-usage') loadRoomUsage();
+    else usageLoader.cancel();
+}, { immediate: true });
+watch(activeDashboardTab, () => {
+    if (activeDashboardTab.value === 'calendar') loadDashboardCalendar();
+    else dashboardLoader.cancel();
+}, { immediate: true });
+watch([isRoomPreviewPanelVisible, roomCalendarReference, () => currentPreviewRoom.value?.id], loadRoomPreview);
+
 onMounted(() => {
     const initialSearch = new URLSearchParams(window.location.search).get('search');
     if (initialSearch) {
@@ -757,6 +789,10 @@ onMounted(() => {
 
 <template>
     <div class="app-shell">
+        <div v-if="dashboardLoader.loading.value || usageLoader.loading.value || previewLoader.loading.value || detailsLoader.loading.value" role="status" class="fixed bottom-5 right-5 z-[100] rounded-xl border border-emerald-200 bg-white px-5 py-3 text-sm text-[#005740] shadow-lg">Loading schedules…</div>
+        <div v-if="dashboardLoader.error.value || usageLoader.error.value || previewLoader.error.value || detailsLoader.error.value" role="alert" class="fixed bottom-5 right-5 z-[100] rounded-xl border border-red-200 bg-white px-5 py-3 text-sm text-red-700 shadow-lg">
+            Unable to load schedules. <button class="underline" @click="loadRoomUsage(); loadRoomPreview(); if (activeDashboardTab === 'calendar') loadDashboardCalendar()">Retry</button>
+        </div>
         <MessageFunction
             :show-create-success="showCreateSuccess"
             :show-edit-success="showEditSuccess"
@@ -1030,7 +1066,9 @@ onMounted(() => {
                                 </div>
                             </div>
 
-                            <div v-if="roomUsageRooms.length" class="room-usage-scroll" tabindex="0" aria-label="Scrollable weekly room usage table">
+                            <p v-if="usageLoader.loading.value" role="status" class="px-5 py-6 text-sm text-slate-500">Loading weekly allocations…</p>
+                            <p v-else-if="usageLoader.error.value" role="alert" class="px-5 py-6 text-sm text-red-700">{{ usageLoader.error.value }}</p>
+                            <div v-else-if="roomUsageRooms.length" class="room-usage-scroll" tabindex="0" aria-label="Scrollable weekly room usage table">
                                 <div class="room-usage-content" :style="{ minWidth: `calc(96px + ${roomUsageRooms.length * 118}px)` }">
                                     <div class="room-usage-building-grid" :style="{ gridTemplateColumns: roomUsageGridColumns }">
                                         <div class="room-usage-corner">SCHEDULE</div>
@@ -1173,7 +1211,7 @@ onMounted(() => {
                             <div class="calendar-weekdays">
                                 <span v-for="weekday in dashboardCalendar.weekdays" :key="weekday">{{ weekday }}</span>
                             </div>
-                            <div class="calendar-month-grid">
+                            <div v-if="!dashboardLoader.loading.value && !dashboardLoader.error.value" class="calendar-month-grid">
                                 <div
                                     v-for="day in dashboardCalendar.days"
                                     :key="day.date"
@@ -1602,7 +1640,7 @@ onMounted(() => {
                             </div>
                             <div class="room-preview-stat">
                                 <span>Schedules</span>
-                                <strong>{{ (currentPreviewRoom.schedules || []).length }}</strong>
+                                <strong>{{ currentPreviewRoom.schedules_count || 0 }}</strong>
                             </div>
                             <div class="room-preview-stat">
                                 <span>User</span>
@@ -1633,7 +1671,7 @@ onMounted(() => {
                             <div class="room-calendar-weekdays">
                                 <span v-for="weekday in roomScheduleCalendar.weekdays" :key="weekday">{{ weekday }}</span>
                             </div>
-                            <div class="room-calendar-grid">
+                            <div v-if="!previewLoader.loading.value && !previewLoader.error.value" class="room-calendar-grid">
                                 <div
                                     v-for="day in roomScheduleCalendar.days"
                                     :key="day.date"
@@ -1858,12 +1896,14 @@ onMounted(() => {
                         </div>
 
                         <div class="border-t border-slate-100 pt-4">
-                            <h4 class="font-semibold text-slate-950">Schedules</h4>
-                            <div v-if="(currentViewedDetails.schedules || []).length === 0" class="mt-3 rounded-xl bg-slate-50 p-4 text-center text-sm text-slate-500">
+                            <h4 class="font-semibold text-slate-950">Schedules (current month)</h4>
+                            <p v-if="detailsLoader.loading.value" class="mt-3 text-sm text-slate-500">Loading schedules…</p>
+                            <p v-else-if="detailsLoader.error.value" class="mt-3 text-sm text-red-700">{{ detailsLoader.error.value }}</p>
+                            <div v-else-if="detailsLoader.records.value.length === 0" class="mt-3 rounded-xl bg-slate-50 p-4 text-center text-sm text-slate-500">
                                 No schedules found for this room.
                             </div>
                             <div v-else class="mt-3 max-h-60 space-y-2 overflow-y-auto pr-2">
-                                <div v-for="sched in currentViewedDetails.schedules" :key="sched.id" class="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                                <div v-for="sched in detailsLoader.records.value" :key="sched.id" class="rounded-xl border border-slate-100 bg-slate-50 p-3">
                                     <p class="text-sm font-semibold text-slate-950">{{ sched.course_name || sched.cfic_id || 'Schedule' }}</p>
                                     <p class="mt-1 text-xs text-slate-500">{{ sched.day || 'N/A' }} · {{ sched.start_time || 'N/A' }} - {{ sched.end_time || 'N/A' }}</p>
                                 </div>

@@ -142,6 +142,7 @@ Route::middleware(['auth.session'])->group(function () {
     Route::get('/Schedule/Import/Template.csv', [ScheduleImportController::class, 'csvTemplate'])->name('schedules.import.template.csv');
     Route::get('/Schedule/Import/Template.xlsx', [ScheduleImportController::class, 'excelTemplate'])->name('schedules.import.template.excel');
     Route::get('/Schedule/details/{schedule}', [ScheduleController::class, 'showDetails'])->name('schedules.details');
+    Route::get('/Schedule/allocations', [\App\Http\Controllers\API\CalendarScheduleController::class, 'index'])->name('schedules.allocations');
     Route::get('/Schedule/calendar-data', [ScheduleController::class, 'calendarData'])->name('schedules.calendar-data');
     Route::get('/Schedule/room-equipment', [ScheduleController::class, 'roomEquipment'])->name('schedules.room-equipment');
     Route::post('/Schedule', [ScheduleController::class, 'store'])->name('schedules.store');
@@ -194,6 +195,7 @@ Route::middleware(['auth.session'])->group(function () {
         });
 
         Route::get('/schedule-report', function (Request $request) {
+            $request->validate(['start_date' => 'nullable|date_format:Y-m-d', 'end_date' => 'nullable|date_format:Y-m-d|after_or_equal:start_date']);
             return app(\App\Services\ReportService::class)->generateScheduleReport(
                 $request->query('start_date', now()->subDays(30)->format('Y-m-d')),
                 $request->query('end_date', now()->format('Y-m-d'))

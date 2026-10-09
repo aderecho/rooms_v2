@@ -76,3 +76,10 @@ it('returns the same complete equipment items in room and schedule APIs', functi
         ->assertJsonPath('schedule.room.equipments', $equipment)
         ->assertJsonPath('schedules.0.room.equipments', $equipment);
 });
+
+
+it('rejects calendar ranges and page sizes that could load unbounded histories', function () {
+    $this->getJson('/api/v1/calendar/schedules?month=2026-10&per_page=100000')->assertUnprocessable();
+    $this->getJson('/api/v1/calendar/schedules?start=2026-01-01&end=2026-12-31')->assertUnprocessable();
+    $this->getJson('/api/v1/calendar/schedules?start=2026-10-01&end=2026-09-30')->assertUnprocessable();
+});

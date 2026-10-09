@@ -152,11 +152,14 @@ class ReportService
     public function generateScheduleReport($startDate, $endDate)
     {
         try {
-            $schedules = Schedule::with(['room', 'faculty', 'requester', 'term'])
-                ->whereBetween('date', [$startDate, $endDate])
-                ->orderBy('date')
-                ->orderBy('start_time')
-                ->get()
+            $query = Schedule::query()->whereBetween('date', [$startDate, $endDate]);
+            $statuses = (clone $query)->selectRaw('status, COUNT(*) as total')->groupBy('status')->pluck('total', 'status');
+            $types = (clone $query)->selectRaw('event_type, COUNT(*) as total')->groupBy('event_type')->pluck('total', 'event_type');
+            request()->validate(['page' => 'nullable|integer|min:1', 'per_page' => 'nullable|integer|min:1|max:200']);
+            $pagination = (clone $query)->select('id', 'room_id', 'faculty_id', 'requester_id', 'event_title', 'event_type', 'date', 'start_time', 'end_time', 'status', 'number_of_participants', 'course_code', 'course_name')->with(['room:id,room_name,building_id', 'room.building:id,building_name', 'faculty:id,first_name,middle_name,last_name', 'requester:id,first_name,middle_name,last_name'])
+                ->orderBy('date')->orderBy('start_time')->orderBy('id')
+                ->paginate((int) request('per_page', 100));
+            $schedules = $pagination->getCollection()
                 ->map(function ($schedule) {
                     return [
                         'id' => $schedule->id,
@@ -177,12 +180,11 @@ class ReportService
                 });
 
             $summary = [
-                'total_schedules' => $schedules->count(),
-                'approved' => $schedules->where('status', 'approved')->count(),
-                'pending' => $schedules->where('status', 'pending')->count(),
-                'cancelled' => $schedules->where('status', 'cancelled')->count(),
-                'by_event_type' => $schedules->groupBy('event_type')->map->count(),
-                'by_status' => $schedules->groupBy('status')->map->count(),
+                'total_schedules' => $statuses->sum(),
+                'approved' => $statuses->get('approved', 0),
+                'pending' => $statuses->get('pending', 0),
+                'cancelled' => $statuses->get('cancelled', 0),
+                'by_event_type' => $types, 'by_status' => $statuses,
             ];
 
             return response()->json([
@@ -193,9 +195,13 @@ class ReportService
                     'generated_at' => now()->toDateTimeString(),
                     'summary' => $summary,
                     'schedules' => $schedules,
+                    'meta' => ['current_page' => $pagination->currentPage(), 'last_page' => $pagination->lastPage(),
+                        'per_page' => $pagination->perPage(), 'total' => $pagination->total()],
                 ],
                 'message' => 'Schedule report generated successfully'
             ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,

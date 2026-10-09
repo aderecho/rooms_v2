@@ -259,9 +259,8 @@ it('imports and exposes every month in an academic-year recurring schedule', fun
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->has('allRooms', 1)
-            ->has('allRooms.0.schedules', 104)
-            ->where('allRooms.0.schedules.0.date', '2026-06-02')
-            ->where('allRooms.0.schedules.103.date', '2027-05-27'));
+            ->has('allRooms.0.schedules', 0)
+            ->where('allRooms.0.schedules_count', 104));
 });
 
 it('supports importing an Excel workbook', function () {

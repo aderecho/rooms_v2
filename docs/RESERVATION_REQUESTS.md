@@ -150,3 +150,17 @@ Pending schedules do not block student reservations until approved. Pending stud
 Approving a schedule or student reservation automatically rejects overlapping pending schedules and student reservation requests for the same room and date. An already approved/in-progress schedule retains the slot; a competing pending schedule is rejected. Adjacent time slots remain eligible. Student automatic rejections include decision history and rejection notifications.
 
 The Schedule page uses server-side pagination (5/10/20/50 rows), SQL search and aggregate status counts. Calendar data loads only the displayed range through `/Schedule/calendar-data` in pages of 500 rows. Approve all applies to matching records across pages in batches of 100. Deploy frontend assets with the controller and routes, then run `php artisan migrate --path=database/migrations/2026_10_09_000004_add_schedule_browsing_indexes.php --force` for the schedule browsing indexes and `php artisan view:clear`.
+
+
+Schedule histories load on demand across the application:
+
+- Main dashboard room lists return metadata and `schedules_count`, without schedule histories. Weekly allocations load for the selected week; room preview schedules load when opened and whenever its month changes. Closing or switching a view cancels stale requests.
+- `/Schedule/allocations` accepts `month=YYYY-MM` or `start/end=YYYY-MM-DD`, optional `room_id`, and `page/per_page`. Ranges cannot exceed 62 days. It returns `data` plus pagination `meta`, default 100 records, maximum 200. Internal allocation responses omit repeated room equipment; it stays in the room metadata.
+- `/api/v1/calendar/schedules` uses the same date-scoped pagination and preserves complete equipment snapshots for external API consumers. Consumers must follow `meta.current_page/last_page` to obtain the full range; `meta.count` is the current page count and `meta.total` is the range total.
+- Term calendars load the requested `month` (current month by default) with pagination metadata. Historical months remain accessible explicitly.
+- `/api/reports/schedule-report` returns paginated `data.schedules` (100 default, 200 maximum), with `data.meta`; summaries are SQL aggregates for the complete selected date range.
+- `/Reports/Schedule` loads report tables only after Generate (`generate=1`). It reads the selected four-room/five-day range in batches and preserves the printable page order.
+- Student availability returns bounded conflict summaries; actual submission and approval validate conflicts through database existence checks.
+- Existing counters, analytics and recent activity queries remain SQL aggregates or bounded lists. Schedule status notifications select only the schedule fields they display.
+
+Deploy PHP, routes and frontend assets together, then clear the route/view cache. External consumers of calendar and schedule-report APIs must support the documented pagination metadata.
