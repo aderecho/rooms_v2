@@ -265,7 +265,7 @@ class ReservationRequestService
         ];
 
         $schedules = $this->scheduleConflictQuery($roomId, $data)
-            ->get(['id', 'start_time', 'end_time', 'status'])
+            ->orderBy('start_time')->limit(25)->get(['id', 'start_time', 'end_time', 'status'])
             ->map(fn (Schedule $schedule) => [
                 'source' => 'schedule',
                 'status' => $schedule->status,
@@ -276,7 +276,7 @@ class ReservationRequestService
             ->toBase();
 
         $requests = $this->reservationConflictQuery($roomId, $data, self::BLOCKING_REQUEST_STATUSES)
-            ->get(['id', 'start_time', 'end_time', 'status'])
+            ->orderBy('start_time')->limit(25)->get(['id', 'start_time', 'end_time', 'status'])
             ->map(fn (ReservationRequest $request) => [
                 'source' => 'reservation_request',
                 'status' => $request->status,

@@ -29,9 +29,8 @@ class MainDashboardService
             ->with([
                 'college:id,college_name',
                 'user_account:id,username,email',
-                'schedules:id,room_id,cfic_id,course_name,day,start_time,end_time'
             ])
-            ->select('rooms.*')
+            ->select('rooms.*')->withCount('schedules')
             ->latest();
 
         // Apply search filter if provided

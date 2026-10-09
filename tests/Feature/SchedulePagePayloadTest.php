@@ -32,7 +32,7 @@ it('renders only one page with 33395 schedules while preserving totals search an
     $row = [
         'room_id' => $room->id, 'event_title' => 'Historical class', 'event_type' => 'class',
         'date' => '2026-10-15', 'start_time' => '10:00:00', 'end_time' => '11:00:00',
-        'day_of_week' => 'Thursday', 'status' => 'pending',
+        'day_of_week' => 'Thursday', 'status' => 'pending', 'created_at' => now(), 'updated_at' => now(),
     ];
     for ($inserted = 0; $inserted < 33395; $inserted += 250) {
         \Illuminate\Support\Facades\DB::table('schedules')->insert(array_fill(0, min(250, 33395 - $inserted), $row));
@@ -50,6 +50,32 @@ it('renders only one page with 33395 schedules while preserving totals search an
         ->assertOk()->assertJsonCount(500, 'data')->assertJsonPath('total', 33395)->assertJsonPath('last_page', 67);
     $this->getJson('/Schedule/calendar-data?start=2026-11-01&end=2026-11-30')
         ->assertOk()->assertJsonCount(0, 'data');
+    $this->get(route('main.dashboard'))->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->has('allRooms.0.schedules', 0)
+            ->where('allRooms.0.schedules_count', 33395)->has('calendarSchedules', 0));
+    $this->getJson('/Schedule/allocations?month=2026-10&room_id='.$room->id)
+        ->assertOk()->assertJsonCount(100, 'data')->assertJsonPath('meta.total', 33395)
+        ->assertJsonPath('meta.last_page', 334)->assertJsonMissingPath('data.0.equipments');
+    $this->getJson('/api/v1/calendar/schedules?month=2026-10&page=334')
+        ->assertOk()->assertJsonCount(95, 'data')->assertJsonPath('meta.total', 33395);
+    $this->getJson('/api/reports/schedule-report?start_date=2026-10-01&end_date=2026-10-31')
+        ->assertOk()->assertJsonCount(100, 'data.schedules')->assertJsonPath('data.summary.total_schedules', 33395)
+        ->assertJsonPath('data.meta.total', 33395);
+    $this->getJson('/api/reports/schedule-report?start_date=2026-10-01&end_date=2026-10-31&per_page=100000')
+        ->assertUnprocessable();
+    $this->get('/Reports/Schedule')->assertOk()->assertInertia(fn (Assert $page) => $page->has('pages', 0));
     $this->getJson('/Schedule?per_page=100000')->assertUnprocessable();
     $this->getJson('/Schedule/calendar-data?start=2026-01-01&end=2026-12-31')->assertUnprocessable();
+});
+
+
+it('skips equipment queries during schedule-only partial reloads', function () {
+    $admin = UserAccount::factory()->create(['user_type' => 'admin', 'account_status' => 'active']);
+    $this->mock(\App\Services\EquipmentInventoryService::class, function ($mock) {
+        $mock->shouldNotReceive('globalInventoryCountsByName');
+        $mock->shouldNotReceive('equipmentDetailsForRoom');
+    });
+    $this->actingAs($admin)->withSession(['user' => LoginController::sessionPayload($admin)])
+        ->withHeaders(['X-Inertia' => 'true', 'X-Inertia-Partial-Component' => 'Schedule', 'X-Inertia-Partial-Data' => 'schedules', 'X-Inertia-Version' => (new \App\Http\Middleware\HandleInertiaRequests)->version(\Illuminate\Http\Request::create('/Schedule'))])
+        ->get('/Schedule')->assertOk()->assertJsonMissingPath('props.rooms')->assertJsonMissingPath('props.globalEquipmentQuantities');
 });

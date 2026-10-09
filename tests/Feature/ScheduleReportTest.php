@@ -51,6 +51,7 @@ it('renders the weekly rooms usage report in the reference page order', function
             'permissions' => [],
         ]])
         ->get(route('reports.schedule', [
+            'generate' => 1,
             'week_start' => '2026-08-26',
             'room_ids' => $rooms->pluck('id')->all(),
         ]))

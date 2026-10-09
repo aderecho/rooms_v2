@@ -20,7 +20,7 @@ class ScheduleNotificationController extends Controller
         }
 
         $notifications = ScheduleNotification::query()
-            ->with(['schedule.room', 'reservationRequest.room', 'reservationRequest.student'])
+            ->with(['schedule:id,room_id,event_title,status,date,start_time,end_time', 'schedule.room:id,room_name,room_code', 'reservationRequest.room', 'reservationRequest.student'])
             ->where('user_id', $user->id)
             ->orderByDesc('created_at')
             ->limit(50)

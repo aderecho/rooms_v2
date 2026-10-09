@@ -2,7 +2,7 @@
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Breadcrumbs from '@/Components/Breadcrumbs.vue';
 import { router } from '@inertiajs/vue3';
-import { reactive } from 'vue';
+import { reactive, ref } from 'vue';
 
 const props = defineProps({
   rooms: { type: Array, default: () => [] },
@@ -17,11 +17,16 @@ const filters = reactive({
   room_ids: Array.from({ length: 4 }, (_, index) => props.selectedRoomIds[index] ?? ''),
 });
 
+const loading = ref(false);
 const applyFilters = () => {
   router.get('/Reports/Schedule', {
+    generate: 1,
     week_start: filters.week_start,
     room_ids: filters.room_ids.filter(Boolean),
   }, {
+    only: ['pages', 'rooms', 'selectedRoomIds', 'weekStart', 'weekLabel'],
+    onStart: () => { loading.value = true; },
+    onFinish: () => { loading.value = false; },
     preserveScroll: true,
     replace: true,
   });
@@ -39,7 +44,7 @@ const printReport = () => window.print();
           <h1 class="app-page-title mt-2">Schedule Report</h1>
           <p class="mt-1 text-sm font-medium text-slate-500">{{ weekLabel }}</p>
         </div>
-        <button type="button" class="app-button-primary" @click="printReport">Print Report</button>
+        <button type="button" class="app-button-primary" :disabled="loading || !pages.length" @click="printReport">Print Report</button>
       </header>
 
       <form class="report-filter report-controls" @submit.prevent="applyFilters">
@@ -56,10 +61,11 @@ const printReport = () => window.print();
             </option>
           </select>
         </label>
-        <button type="submit" class="app-button-secondary">Generate</button>
+        <button type="submit" :disabled="loading" class="app-button-secondary">{{ loading ? 'Loading…' : 'Generate' }}</button>
       </form>
 
-      <div v-if="selectedRoomIds.length" class="report-pages" aria-label="Rooms usage weekly schedule report">
+      <p v-if="!pages.length" class="report-controls text-sm text-slate-600">Choose a week and rooms, then select Generate to load the report.</p>
+      <div v-if="selectedRoomIds.length && pages.length" class="report-pages" aria-label="Rooms usage weekly schedule report">
         <section v-for="(reportPage, pageIndex) in pages" :key="pageIndex" class="report-page">
           <h2 v-if="pageIndex === 0" class="report-title">ROOMS USAGE</h2>
 

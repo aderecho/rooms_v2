@@ -45,33 +45,17 @@ class MainDashboardController extends Controller
             ->select(['room_id', 'start_time', 'end_time'])
             ->whereDate('date', $today)
             ->whereNotIn('status', ['cancelled', 'completed', 'rejected'])
-            ->orderBy('start_time')
-            ->get()
-            ->groupBy('room_id');
+            ->distinct()->orderBy('start_time')->get()->groupBy('room_id');
 
-        // Keep every room schedule available to the room-preview timeline. The
-        // dashboard calendar below is still intentionally limited to its visible
-        // month, but the preview must not hide the earlier months of a recurring
-        // academic-year schedule.
-        $rooms = Room::with([
-            'college',
-            'building',
-            'schedules' => function ($query) {
-                $query->orderBy('date')
-                    ->orderBy('start_time')
-                    ->with('faculty');
-            },
-            'assignedUser',
-        ])
-            ->orderBy('room_name')
-            ->paginate(10);
+        $rooms = Room::with(['college', 'building', 'assignedUser'])->withCount('schedules')
+            ->orderBy('room_name')->paginate(10);
 
         // Process rooms data for frontend
         $formatRoom = function ($room) use ($today, $todaySchedulesByRoom) {
             // Get today's schedule for this room
-            $todaysSchedule = $room->schedules->first(function ($schedule) use ($today) {
-                return $schedule->date->format('Y-m-d') === $today;
-            });
+            $todaysSchedule = Schedule::select('id', 'room_id', 'faculty_name', 'faculty_id', 'course_name', 'event_title', 'start_time', 'end_time')
+                ->with('faculty:id,first_name,middle_name,last_name')->where('room_id', $room->id)
+                ->whereDate('date', $today)->orderBy('start_time')->first();
             $isFullyOccupied = $this->roomAvailability->isFullyOccupied(
                 $todaySchedulesByRoom->get($room->id, collect())
             );
@@ -113,29 +97,8 @@ class MainDashboardController extends Controller
                 'status' => $room->status,
                 'is_available_for_day' => ! $isUnavailableByStatus && ! $isFullyOccupied,
                 'capacity' => $room->capacity,
-                'schedules' => $room->schedules->map(function ($schedule) {
-                    return [
-                        'id' => $schedule->id,
-                        'room_id' => $schedule->room_id,
-                        'cfic_id' => $schedule->cfic_id,
-                        'event_title' => $schedule->event_title,
-                        'course_code' => $schedule->course_code,
-                        'course_name' => $schedule->course_name,
-                        'section' => $schedule->section,
-                        'faculty_name' => $schedule->faculty_name,
-                        'faculty' => $schedule->faculty ? [
-                            'id' => $schedule->faculty->id,
-                            'full_name' => $schedule->faculty->full_name,
-                            'username' => $schedule->faculty->username,
-                        ] : null,
-                        'date' => $schedule->date->format('Y-m-d'),
-                        'day' => $schedule->day_of_week,
-                        'start_time' => $schedule->start_time->format('H:i'),
-                        'end_time' => $schedule->end_time->format('H:i'),
-                        'status' => $schedule->status,
-                        'number_of_participants' => $schedule->number_of_participants,
-                    ];
-                }),
+                'schedules' => [],
+                'schedules_count' => $room->schedules_count,
                 // For frontend display in table columns
                 'today_faculty' => $todaysSchedule ? ($todaysSchedule->faculty_name ?:
                     ($todaysSchedule->faculty ? $todaysSchedule->faculty->full_name : 'N/A')) : 'N/A',
@@ -151,19 +114,8 @@ class MainDashboardController extends Controller
         // Set the processed collection back to the paginator
         $rooms->setCollection($processedRooms);
 
-        $allRooms = Room::with([
-            'college',
-            'building',
-            'schedules' => function ($query) {
-                $query->orderBy('date')
-                    ->orderBy('start_time')
-                    ->with('faculty');
-            },
-            'assignedUser',
-        ])
-            ->orderBy('room_name')
-            ->get()
-            ->map($formatRoom);
+        $allRooms = Room::with(['college', 'building', 'assignedUser'])->withCount('schedules')
+            ->orderBy('room_name')->get()->map($formatRoom);
 
         // Get today's schedules count
         $todaySchedulesCount = Schedule::where('date', $today)->count();
@@ -172,31 +124,7 @@ class MainDashboardController extends Controller
         $pendingSchedulesCount = Schedule::where('status', 'pending')->count();
         $pendingReservationRequestsCount = ReservationRequest::where('status', 'pending')->count();
 
-        $calendarSchedules = Schedule::with(['room.college', 'room.building', 'faculty'])
-            ->whereBetween('date', [$calendarStart->format('Y-m-d'), $calendarEnd->format('Y-m-d')])
-            ->orderBy('date')
-            ->orderBy('start_time')
-            ->get()
-            ->map(function ($schedule) {
-                return [
-                    'id' => $schedule->id,
-                    'room_id' => $schedule->room_id,
-                    'room_name' => $schedule->room?->room_name,
-                    'room_code' => $schedule->room?->room_code,
-                    'college_name' => $schedule->room?->college?->college_name,
-                    'building_name' => $schedule->room?->building?->building_name,
-                    'event_title' => $schedule->event_title,
-                    'course_code' => $schedule->course_code,
-                    'course_name' => $schedule->course_name,
-                    'faculty_name' => $schedule->faculty_name ?: $schedule->faculty?->full_name,
-                    'date' => $schedule->date->format('Y-m-d'),
-                    'day' => $schedule->day_of_week,
-                    'start_time' => $schedule->start_time->format('H:i'),
-                    'end_time' => $schedule->end_time->format('H:i'),
-                    'status' => $schedule->status,
-                    'number_of_participants' => $schedule->number_of_participants,
-                ];
-            });
+        $calendarSchedules = []; // Loaded by the visible calendar through /Schedule/allocations.
 
         // Get equipment statistics
         $equipmentStats = [
@@ -331,8 +259,8 @@ class MainDashboardController extends Controller
             'building',
             'schedules' => function ($query) use ($today) {
                 $query->where('date', $today)
-                    ->orderBy('start_time')
-                    ->with('faculty');
+                    ->orderBy('start_time')->limit(1)
+                    ->with('faculty:id,first_name,middle_name,last_name');
             },
             'assignedUser',
         ])

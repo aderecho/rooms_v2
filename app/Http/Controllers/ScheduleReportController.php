@@ -37,13 +37,6 @@ class ScheduleReportController extends Controller
             fn (Room $room) => array_search($room->id, $selectedRoomIds, true)
         )->values();
 
-        $schedules = Schedule::query()
-            ->whereIn('room_id', $selectedRoomIds)
-            ->whereBetween('date', [$weekStart->toDateString(), $weekStart->addDays(4)->toDateString()])
-            ->where('status', '!=', 'cancelled')
-            ->orderBy('date')
-            ->orderBy('start_time')
-            ->get();
 
         return Inertia::render('ScheduleReport', [
             'rooms' => $rooms->map(fn (Room $room) => [
@@ -54,9 +47,9 @@ class ScheduleReportController extends Controller
             'selectedRoomIds' => $selectedRoomIds,
             'weekStart' => $weekStart->toDateString(),
             'weekLabel' => $weekStart->format('F j, Y').' – '.$weekStart->addDays(4)->format('F j, Y'),
-            'pages' => collect(self::PAGE_DAYS)->map(fn (array $days) => [
+            'pages' => fn () => ! $request->boolean('generate') ? [] : collect(self::PAGE_DAYS)->map(fn (array $days) => [
                 'days' => collect($days)->map(
-                    fn (string $day) => $this->dayTable($day, $weekStart, $selectedRooms, $schedules)
+                    fn (string $day) => $this->dayTable($day, $weekStart, $selectedRooms)
                 )->values(),
             ])->values(),
         ]);
@@ -89,12 +82,10 @@ class ScheduleReportController extends Controller
     private function dayTable(
         string $day,
         CarbonImmutable $weekStart,
-        Collection $rooms,
-        Collection $schedules
+        Collection $rooms
     ): array {
         $dayIndex = array_search($day, ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY'], true);
         $date = $weekStart->addDays($dayIndex);
-        $daySchedules = $schedules->filter(fn (Schedule $schedule) => $schedule->date->isSameDay($date));
 
         return [
             'name' => $day,
@@ -103,25 +94,20 @@ class ScheduleReportController extends Controller
                 'id' => $room->id,
                 'name' => strtoupper($room->room_name),
             ])->values(),
-            'rows' => collect(self::TIME_SLOTS)->map(function (array $slot) use ($rooms, $daySchedules) {
+            'rows' => collect(self::TIME_SLOTS)->map(function (array $slot) use ($rooms, $date) {
                 return [
                     'time' => $slot['label'],
-                    'cells' => $rooms->map(function (Room $room) use ($slot, $daySchedules) {
-                        $matching = $daySchedules
-                            ->where('room_id', $room->id)
-                            ->filter(fn (Schedule $schedule) => $this->overlaps($schedule, $slot))
-                            ->values();
-
-                        if ($matching->isEmpty()) {
-                            return [
-                                'text' => ($slot['lunch'] ?? false) ? 'LUNCH BREAK' : 'VACANT',
-                                'occupied' => false,
-                            ];
-                        }
-
+                    'cells' => $rooms->map(function (Room $room) use ($slot, $date) {
+                        $labels = Schedule::query()
+                            ->select('id', 'course_code', 'event_title', 'section', 'number_of_participants', 'start_time', 'end_time')
+                            ->where('room_id', $room->id)->whereDate('date', $date->toDateString())
+                            ->where('status', '!=', 'cancelled')
+                            ->whereTime('start_time', '<', $slot['end'])->whereTime('end_time', '>', $slot['start'])
+                            ->orderBy('start_time')->orderBy('id')->lazy(100)
+                            ->map(fn (Schedule $schedule) => $this->scheduleLabel($schedule, $slot))->implode(' / ');
                         return [
-                            'text' => $matching->map(fn (Schedule $schedule) => $this->scheduleLabel($schedule, $slot))->implode(' / '),
-                            'occupied' => true,
+                            'text' => $labels !== '' ? $labels : (($slot['lunch'] ?? false) ? 'LUNCH BREAK' : 'VACANT'),
+                            'occupied' => $labels !== '',
                         ];
                     })->values(),
                 ];

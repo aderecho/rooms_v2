@@ -48,10 +48,11 @@ it('provides room codes and schedule allocation fields for the room usage grid',
         ->assertInertia(fn (Assert $page) => $page
             ->component('MainDashboard')
             ->where('allRooms.0.room_code', 'UG 216')
-            ->where('allRooms.0.schedules.0.room_id', $room->id)
-            ->where('allRooms.0.schedules.0.course_code', 'COMM 2')
-            ->where('allRooms.0.schedules.0.section', 'F')
-            ->where('allRooms.0.schedules.0.date', '2026-08-24')
-            ->where('allRooms.0.schedules.0.start_time', '09:30')
-            ->where('allRooms.0.schedules.0.end_time', '10:30'));
+            ->where('allRooms.0.schedules_count', 1)
+            ->has('allRooms.0.schedules', 0)
+            ->has('calendarSchedules', 0));
+    $this->getJson('/Schedule/allocations?start=2026-08-24&end=2026-08-30&room_id='.$room->id)
+        ->assertOk()->assertJsonPath('data.0.room_id', $room->id)
+        ->assertJsonPath('data.0.course_code', 'COMM 2')->assertJsonPath('data.0.section', 'F')
+        ->assertJsonPath('data.0.date', '2026-08-24')->assertJsonPath('data.0.start_time', '09:30:00');
 });

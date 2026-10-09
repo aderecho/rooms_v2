@@ -33,10 +33,12 @@ class ScheduleController extends Controller
         $counts = Schedule::query()->selectRaw('status, COUNT(*) as total')->groupBy('status')->pluck('total', 'status');
         $pendingCount = $this->applySearch(Schedule::query(), $search)->where('status', 'pending')->count();
 
-        $rooms = $this->roomsWithEquipmentDetails(Room::select('id', 'room_name', 'room_code', 'equipments')->orderBy('room_name')->get());
-        $faculty = UserAccount::select('id', 'first_name', 'middle_name', 'last_name')->where('user_type', 'faculty')->get();
-        $requesters = UserAccount::select('id', 'first_name', 'middle_name', 'last_name')->whereIn('user_type', ['faculty', 'staff'])->get();
-        $terms = Term::select('id', 'term_name')->where('status', 'active')->get();
+        $rooms = null;
+        $loadRooms = function () use (&$rooms) {
+            return $rooms ??= $this->roomsWithEquipmentDetails(
+                Room::select('id', 'room_name', 'room_code', 'equipments')->orderBy('room_name')->get()
+            );
+        };
 
         $sessionUsername = data_get($request->session()->get('user'), 'username');
         $currentUser = $sessionUsername
@@ -61,14 +63,14 @@ class ScheduleController extends Controller
             'scheduleFilters' => ['search' => $search],
             'scheduleCounts' => $counts,
             'matchingPendingCount' => $pendingCount,
-            'rooms' => $rooms,
-            'roomEquipmentQuantities' => $this->buildRoomEquipmentQuantitiesMap($rooms),
-            'globalEquipmentQuantities' => $this->equipmentInventory->globalInventoryCountsByName(),
-            'faculty' => $faculty,
-            'requesters' => $requesters,
+            'rooms' => $loadRooms,
+            'roomEquipmentQuantities' => fn () => $this->buildRoomEquipmentQuantitiesMap($loadRooms()),
+            'globalEquipmentQuantities' => fn () => $this->equipmentInventory->globalInventoryCountsByName(),
+            'faculty' => fn () => UserAccount::select('id', 'first_name', 'middle_name', 'last_name')->where('user_type', 'faculty')->get(),
+            'requesters' => fn () => UserAccount::select('id', 'first_name', 'middle_name', 'last_name')->whereIn('user_type', ['faculty', 'staff'])->get(),
             'currentRequester' => $currentRequester,
             'currentUserRole' => $currentUserRole,
-            'terms' => $terms,
+            'terms' => fn () => Term::select('id', 'term_name')->where('status', 'active')->get(),
         ]);
     }
 
