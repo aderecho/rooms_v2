@@ -164,3 +164,5 @@ Schedule histories load on demand across the application:
 - Existing counters, analytics and recent activity queries remain SQL aggregates or bounded lists. Schedule status notifications select only the schedule fields they display.
 
 Deploy PHP, routes and frontend assets together, then clear the route/view cache. External consumers of calendar and schedule-report APIs must support the documented pagination metadata.
+
+The initial `/Schedule` HTML omits schedule rows and pagination; Inertia loads that deferred group after rendering, with a loading placeholder. Room/equipment/faculty/requester/term form resources are optional props fetched only when New Schedule or Edit opens. They are reused during the page session. Appointment details retrieve room equipment only when needed.

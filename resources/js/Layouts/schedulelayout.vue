@@ -2,7 +2,7 @@
 import ModalDialog from '@/Components/ModalDialog.vue'
 import { ref, computed, watchEffect, watch, onMounted, onUnmounted } from 'vue';
 import axios from 'axios';
-import { router } from '@inertiajs/vue3';
+import { router, Deferred } from '@inertiajs/vue3';
 
 // Core Components
 import Navbar from '@/Components/Navbar.vue';
@@ -104,6 +104,7 @@ const dbScheduleToEvent = (s) => {
         start,
         end,
         extendedProps: {
+            roomId: s.room_id,
             room: s.room?.room_name || s.room?.room_code || 'N/A',
             roomCode: s.room?.room_code || '',
             building: s.room?.building?.building_name || 'N/A',
@@ -473,7 +474,30 @@ const closeConflictNoticeModal = () => {
 };
 
 // --- MODAL CONTROLLERS ---
-const openAppointmentModal = (data = null, editing = null) => {
+const formDataLoading = ref(false);
+const formDataLoaded = ref(false);
+let formDataPromise;
+const loadFormData = () => {
+    if (formDataLoaded.value) return Promise.resolve();
+    if (formDataPromise) return formDataPromise;
+    formDataLoading.value = true;
+    formDataPromise = new Promise((resolve, reject) => {
+        router.reload({
+            only: ['rooms', 'roomEquipmentQuantities', 'globalEquipmentQuantities', 'faculty', 'requesters', 'terms'],
+            onSuccess: () => { formDataLoaded.value = true; resolve(); },
+            onError: reject,
+            onCancel: () => reject(new Error('Cancelled')),
+            onFinish: () => { if (!formDataLoaded.value) reject(new Error('Loading failed')); formDataLoading.value = false; formDataPromise = null; },
+        });
+    });
+    return formDataPromise;
+};
+const openAppointmentModal = async (data = null, editing = null) => {
+    try { await loadFormData(); }
+    catch {
+        notifyDialog('Unable to load the schedule form. Please try again.', { title: 'Loading failed', variant: 'danger' });
+        return;
+    }
     modalState.value.appointment = {
         visible: true,
         data: data || {
@@ -486,8 +510,24 @@ const openAppointmentModal = (data = null, editing = null) => {
     };
 };
 
-const openEventViewer = (event) => {
-    modalState.value.eventViewer = { visible: true, event };
+const viewerDataLoading = ref(false);
+let viewerRequest = 0;
+const openEventViewer = async (event) => {
+    const token = ++viewerRequest;
+    let selected = event;
+    if (event.extendedProps?.roomId && !event.extendedProps?.equipment?.length) {
+        viewerDataLoading.value = true;
+        try {
+            const response = await axios.get(`/api/v1/room/list/${event.extendedProps.roomId}`);
+            selected = { ...event, extendedProps: { ...event.extendedProps, equipment: parseRoomEquipments(response.data.data?.equipments) } };
+        } catch {
+            if (token === viewerRequest) notifyDialog('Unable to load room equipment details. Please try again.', { title: 'Loading failed', variant: 'danger' });
+            return;
+        } finally {
+            if (token === viewerRequest) viewerDataLoading.value = false;
+        }
+    }
+    if (token === viewerRequest) modalState.value.eventViewer = { visible: true, event: selected };
 };
 
 const closeModal = (modalName) => {
@@ -856,6 +896,10 @@ watchEffect(() => {
                 <!-- Main Content -->
                 <p v-if="currentView === 'calendar' && calendarLoading" role="status" class="mb-3 text-sm text-slate-600">Loading calendar schedules…</p>
                 <p v-if="currentView === 'calendar' && calendarError" role="alert" class="mb-3 text-sm text-red-700">{{ calendarError }} <button class="underline" @click="loadCalendar">Retry</button></p>
+                <p v-if="viewerDataLoading" role="status" class="mb-3 text-sm text-slate-600">Loading appointment details…</p>
+                <p v-if="formDataLoading" role="status" class="mb-3 text-sm text-slate-600">Loading schedule form…</p>
+                <Deferred :data="['schedules', 'schedulePagination']">
+                    <template #fallback><p role="status" class="rounded-xl bg-white p-6 text-sm text-slate-600">Loading appointments…</p></template>
                 <TableComponent
                     v-if="currentView === 'table'"
                     :events="events" :pagination="schedulePagination" :filters="scheduleFilters" :matching-pending-count="matchingPendingCount"
@@ -867,7 +911,8 @@ watchEffect(() => {
                     @row-clicked="openEventViewer"
                 />
 
-                <CalendarView v-else :data="calendarEvents" :initial-date="currentCalendarDate"
+                </Deferred>
+                <CalendarView v-if="currentView === 'calendar'" :data="calendarEvents" :initial-date="currentCalendarDate"
                     :initial-mode="currentCalendarMode" :ListViewComponent="TableComponent"
                     :MonthGridViewComponent="MonthGridView" :TimeGridViewComponent="TimeGridView"
                     @update:date="(date) => currentCalendarDate = date"
