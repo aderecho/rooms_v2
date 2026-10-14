@@ -22,7 +22,7 @@ class AdminReservationRequestController extends Controller
 
         $filters = $request->validate([
             'search' => ['nullable', 'string', 'max:100'],
-            'status' => ['nullable', 'string', 'in:all,pending,approved,rejected,in_progress,completed,cancelled'],
+            'status' => ['nullable', 'string', 'in:all,pending,approved,rejected'],
             'date' => ['nullable', 'date_format:Y-m-d'],
             'submitted_date' => ['nullable', 'date_format:Y-m-d'],
             'per_page' => ['nullable', 'integer', 'in:10,25,50,100'],
@@ -30,7 +30,7 @@ class AdminReservationRequestController extends Controller
         $status = $filters['status'] ?? 'all';
         $search = trim((string) ($filters['search'] ?? ''));
 
-        $query = $this->requestsQuery()
+        $query = ReservationRequest::query()
             ->with(['student', 'room.building', 'room.college', 'reviewer'])
             ->orderByRaw("CASE WHEN status = 'pending' THEN 0 ELSE 1 END")
             ->latest()
@@ -49,7 +49,6 @@ class AdminReservationRequestController extends Controller
             $query->where(function ($builder) use ($search) {
                 $builder
                     ->where('purpose', 'like', "%{$search}%")
-                    ->orWhere('requester_name', 'like', "%{$search}%")
                     ->orWhereHas('student', function ($studentQuery) use ($search) {
                         $studentQuery
                             ->where('first_name', 'like', "%{$search}%")
@@ -121,27 +120,9 @@ class AdminReservationRequestController extends Controller
         return back()->with('success', 'Reservation request rejected. The student notification has been recorded.');
     }
 
-    /** Merge both booking workflows before filtering and pagination. */
-    private function requestsQuery(): \Illuminate\Database\Eloquent\Builder
-    {
-        $reservations = ReservationRequest::query()->selectRaw(
-            "id, student_id, room_id, reservation_date, start_time, end_time, purpose, attendees, remarks, status, reviewed_by, approved_at, rejected_at, admin_response, schedule_id, created_at, updated_at, 'reservation' as source, NULL as requester_name"
-        );
-        $appointments = \App\Models\Schedule::query()
-            ->whereNotExists(function ($query) {
-                $query->selectRaw('1')->from('reservation_requests')
-                    ->whereColumn('reservation_requests.schedule_id', 'schedules.id');
-            })
-            ->selectRaw("id, requester_id as student_id, room_id, date as reservation_date, start_time, end_time, event_title as purpose, number_of_participants as attendees, description as remarks, status, NULL as reviewed_by, NULL as approved_at, NULL as rejected_at, NULL as admin_response, id as schedule_id, created_at, updated_at, 'appointment' as source, requester_name");
-
-        return ReservationRequest::query()->fromSub(
-            $reservations->unionAll($appointments)->toBase(), 'reservation_requests'
-        );
-    }
-
     private function totals(): array
     {
-        $counts = $this->requestsQuery()
+        $counts = ReservationRequest::query()
             ->selectRaw('status, COUNT(*) as aggregate')
             ->groupBy('status')
             ->pluck('aggregate', 'status');

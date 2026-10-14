@@ -143,22 +143,29 @@ it('requires a valid saved student email and ignores a client supplied substitut
     expect(ReservationRequest::count())->toBe(0);
 });
 
-it('includes schedule appointments by default without duplicating linked student reservations', function () {
-    $appointment = Schedule::factory()->create([
-        'room_id' => $this->room->id, 'requester_id' => $this->student->id,
-        'event_title' => 'Notification appointment', 'status' => 'pending',
-        'date' => today()->addDays(3)->format('Y-m-d'),
-    ]);
-    $linked = Schedule::factory()->create(['room_id' => $this->room->id, 'status' => 'approved']);
-    dashboardRequest($this, ['status' => 'approved', 'schedule_id' => $linked->id]);
-    Schedule::factory()->create(['room_id' => $this->room->id, 'status' => 'cancelled']);
-
+it('shows all student request statuses by default and excludes schedule appointments', function () {
+    Schedule::factory()->create(['room_id' => $this->room->id, 'requester_id' => $this->student->id, 'status' => 'pending']);
+    foreach (['pending', 'approved', 'rejected'] as $status) {
+        dashboardRequest($this, ['status' => $status]);
+    }
     $this->get('/ReservationRequests')->assertInertia(fn (Assert $page) => $page
         ->where('filters.status', 'all')->has('requests.data', 3)
-        ->where('totals.all', 3)->where('totals.pending', 1)->where('totals.approved', 1)
-        ->where('requests.data.0.source', 'appointment')
-        ->where('requests.data.0.row_key', 'appointment-'.$appointment->id));
-    $this->get('/ReservationRequests?search=Notification')->assertInertia(fn (Assert $page) => $page
-        ->has('requests.data', 1)->where('requests.data.0.purpose', 'Notification appointment'));
-    $this->get('/ReservationRequests?status=cancelled')->assertInertia(fn (Assert $page) => $page->has('requests.data', 1));
+        ->where('totals.all', 3)->where('totals.pending', 1)
+        ->where('totals.approved', 1)->where('totals.rejected', 1));
+});
+
+it('shows only student reservation notifications and counts only their unread messages for admins', function () {
+    $reservation = dashboardRequest($this);
+    $appointment = Schedule::factory()->create(['room_id' => $this->room->id]);
+    $notification = \App\Models\ScheduleNotification::create([
+        'user_id' => $this->admin->id, 'reservation_request_id' => $reservation->id,
+        'type' => 'reservation_submitted', 'title' => 'New student request',
+    ]);
+    \App\Models\ScheduleNotification::create([
+        'user_id' => $this->admin->id, 'schedule_id' => $appointment->id,
+        'type' => 'appointment_created', 'title' => 'Schedule appointment',
+    ]);
+    $this->getJson('/api/schedule-notifications')->assertOk()
+        ->assertJsonCount(1, 'notifications')->assertJsonPath('unread_count', 1)
+        ->assertJsonPath('notifications.0.id', $notification->id);
 });

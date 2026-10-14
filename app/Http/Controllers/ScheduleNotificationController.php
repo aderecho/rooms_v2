@@ -19,7 +19,11 @@ class ScheduleNotificationController extends Controller
             return response()->json(['success' => false, 'message' => 'Unauthorized.'], 401);
         }
 
-        $notifications = ScheduleNotification::query()
+        $visibleNotifications = ScheduleNotification::query()
+            ->where('user_id', $user->id)
+            ->when($user->user_type === 'admin', fn ($query) => $query->whereHas('reservationRequest'));
+
+        $notifications = (clone $visibleNotifications)
             ->with(['schedule:id,room_id,event_title,status,date,start_time,end_time', 'schedule.room:id,room_name,room_code', 'reservationRequest.room', 'reservationRequest.student'])
             ->where('user_id', $user->id)
             ->orderByDesc('created_at')
@@ -27,8 +31,7 @@ class ScheduleNotificationController extends Controller
             ->get()
             ->map(fn (ScheduleNotification $notification) => $this->formatNotification($notification));
 
-        $unreadCount = ScheduleNotification::query()
-            ->where('user_id', $user->id)
+        $unreadCount = (clone $visibleNotifications)
             ->whereNull('read_at')
             ->count();
 
