@@ -1,5 +1,4 @@
 <script setup>
-import axios from 'axios';
 import ModalDialog from '@/Components/ModalDialog.vue'
 import { computed, ref, watch } from 'vue';
 import { Link, router, useForm, usePage } from '@inertiajs/vue3';
@@ -94,15 +93,6 @@ const clearFilters = () => {
     visitFilters('all');
 };
 
-const updateAppointment = async (requestItem, status) => {
-    try {
-        await axios.patch(`/Schedule/${requestItem.id}/status`, { status });
-        router.reload({ only: ['requests', 'totals'] });
-    } catch (error) {
-        await notifyDialog(error.response?.data?.message || 'The appointment could not be updated.', { title: 'Appointment update failed', variant: 'danger' });
-    }
-};
-
 const approve = async (requestItem) => {
     if (approvingId.value !== null || rejectForm.processing) return;
     approvingId.value = requestItem.id;
@@ -111,11 +101,6 @@ const approve = async (requestItem) => {
         { title: 'Approve reservation request', confirmLabel: 'Approve request' },
     );
     if (!confirmed) { approvingId.value = null; return; }
-    if (requestItem.source === 'appointment') {
-        await updateAppointment(requestItem, 'approved');
-        approvingId.value = null;
-        return;
-    }
     router.patch(`/ReservationRequests/${requestItem.id}/approve`, {}, {
         preserveScroll: true,
         onError: (errors) => notifyDialog(Object.values(errors).join('\n'), { title: 'Reservation could not be approved', variant: 'danger' }),
@@ -123,19 +108,7 @@ const approve = async (requestItem) => {
     });
 };
 
-const openReject = async (requestItem) => {
-    if (requestItem.source === 'appointment') {
-        if (rejectForm.processing || rejectionConfirming.value || approvingId.value !== null) return;
-        rejectionConfirming.value = true;
-        try {
-            if (await confirmDialog('Reject this appointment and notify the requester?', { title: 'Reject appointment', confirmLabel: 'Reject', variant: 'danger' })) {
-                await updateAppointment(requestItem, 'rejected');
-            }
-        } finally {
-            rejectionConfirming.value = false;
-        }
-        return;
-    }
+const openReject = (requestItem) => {
     rejectionTarget.value = requestItem;
     rejectForm.reset();
     rejectForm.clearErrors();
@@ -164,8 +137,8 @@ const toggleRequest = (requestItem, event) => {
     if (event?.target.closest('a, button, input, select, textarea')) return;
     if (event && window.getSelection()?.toString()) return;
     const next = new Set(expandedRequestIds.value);
-    if (next.has(requestItem.row_key)) next.delete(requestItem.row_key);
-    else next.add(requestItem.row_key);
+    if (next.has(requestItem.id)) next.delete(requestItem.id);
+    else next.add(requestItem.id);
     expandedRequestIds.value = next;
 };
 </script>
@@ -176,7 +149,7 @@ const toggleRequest = (requestItem, event) => {
             <div>
                 <span class="app-breadcrumb">Administration</span>
                 <h1 class="app-page-title">Reservation Requests</h1>
-                <p class="mt-2 text-sm text-slate-600">Review reservation requests and appointments, verify schedules, and record an explicit decision.</p>
+                <p class="mt-2 text-sm text-slate-600">Review student requests, verify schedules, and record an explicit decision.</p>
             </div>
         </header>
 
@@ -243,7 +216,7 @@ const toggleRequest = (requestItem, event) => {
                     </label>
                     <label class="grid gap-1.5 text-sm font-semibold text-slate-700">
                         Status
-                        <select v-model="selectedStatus" class="app-field"><option value="all">All Requests</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option><option value="in_progress">In Progress</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select>
+                        <select v-model="selectedStatus" class="app-field"><option value="all">All Requests</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select>
                     </label>
                     <label class="grid gap-1.5 text-sm font-semibold text-slate-700">
                         Reservation date
@@ -278,7 +251,7 @@ const toggleRequest = (requestItem, event) => {
                         <thead class="!bg-[#005740] !text-white">
                             <tr>
                                 <th scope="col" class="px-4 py-3">Request</th>
-                                <th scope="col" class="px-4 py-3">Requester</th>
+                                <th scope="col" class="px-4 py-3">Student</th>
                                 <th scope="col" class="px-4 py-3">Room / Building</th>
                                 <th scope="col" class="px-4 py-3">Schedule</th>
                                 <th scope="col" class="px-4 py-3">Attendees</th>
@@ -286,12 +259,12 @@ const toggleRequest = (requestItem, event) => {
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-200">
-                            <template v-for="requestItem in requestsList" :key="requestItem.row_key">
-                                <tr class="cursor-pointer transition hover:bg-emerald-50/60" :class="{ 'bg-emerald-50/60': expandedRequestIds.has(requestItem.row_key) }" @click="toggleRequest(requestItem, $event)">
+                            <template v-for="requestItem in requestsList" :key="requestItem.id">
+                                <tr class="cursor-pointer transition hover:bg-emerald-50/60" :class="{ 'bg-emerald-50/60': expandedRequestIds.has(requestItem.id) }" @click="toggleRequest(requestItem, $event)">
                                     <td class="px-4 py-4">
-                                        <button type="button" class="flex items-center gap-2 rounded px-1 py-1 font-bold text-[#005740] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2" :aria-expanded="expandedRequestIds.has(requestItem.row_key)" :aria-controls="`request-details-${requestItem.row_key}`" :aria-label="`${expandedRequestIds.has(requestItem.row_key) ? 'Collapse' : 'Expand'} request #${requestItem.id}`" @click="toggleRequest(requestItem)">
-                                            <svg class="h-4 w-4 shrink-0 transition-transform" :class="{ 'rotate-90': expandedRequestIds.has(requestItem.row_key) }" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m7 4 6 6-6 6" /></svg>
-                                            {{ requestItem.source === 'appointment' ? 'Appointment' : '#' }}{{ requestItem.id }}
+                                        <button type="button" class="flex items-center gap-2 rounded px-1 py-1 font-bold text-[#005740] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2" :aria-expanded="expandedRequestIds.has(requestItem.id)" :aria-controls="`request-details-${requestItem.id}`" :aria-label="`${expandedRequestIds.has(requestItem.id) ? 'Collapse' : 'Expand'} request #${requestItem.id}`" @click="toggleRequest(requestItem)">
+                                            <svg class="h-4 w-4 shrink-0 transition-transform" :class="{ 'rotate-90': expandedRequestIds.has(requestItem.id) }" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m7 4 6 6-6 6" /></svg>
+                                            #{{ requestItem.id }}
                                         </button>
                                     </td>
                                     <td class="px-4 py-4"><span class="block font-semibold text-slate-900">{{ requestItem.student?.name }}</span><span class="text-xs text-slate-500">{{ requestItem.student?.account_identifier }}</span></td>
@@ -300,19 +273,19 @@ const toggleRequest = (requestItem, event) => {
                                     <td class="px-4 py-4">{{ requestItem.attendees }} / {{ requestItem.room?.capacity || '—' }}</td>
                                     <td class="px-4 py-4"><StatusBadge :status="requestItem.status" size="md" /></td>
                                 </tr>
-                                <tr v-show="expandedRequestIds.has(requestItem.row_key)" :id="`request-details-${requestItem.row_key}`">
+                                <tr v-show="expandedRequestIds.has(requestItem.id)" :id="`request-details-${requestItem.id}`">
                                     <td colspan="6" class="bg-slate-50/60">
                                         <div class="grid gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_minmax(16rem,0.42fr)] lg:p-6">
                                             <div>
                                                 <div class="flex flex-wrap items-center gap-2">
                                                     <StatusBadge :status="requestItem.status" size="md" />
-                                                    <span class="text-xs font-bold uppercase tracking-[0.1em] text-slate-500">Request {{ requestItem.source === 'appointment' ? 'Appointment' : '#' }}{{ requestItem.id }}</span>
+                                                    <span class="text-xs font-bold uppercase tracking-[0.1em] text-slate-500">Request #{{ requestItem.id }}</span>
                                                 </div>
                                                 <h2 class="mt-3 text-xl font-extrabold text-slate-900">{{ requestItem.room?.room_code }} — {{ requestItem.room?.room_name }}</h2>
                                                 <p class="mt-1 text-sm text-slate-600">{{ requestItem.room?.building || requestItem.room?.location || 'Campus facility' }}</p>
 
                                                 <dl class="mt-5 grid gap-4 text-sm sm:grid-cols-2 xl:grid-cols-3">
-                                                    <div><dt class="text-xs font-bold uppercase tracking-wide text-slate-500">Requester</dt><dd class="mt-1 font-semibold text-slate-900">{{ requestItem.student?.name }}<br><span class="font-normal text-slate-500">{{ requestItem.student?.account_identifier }}</span><br><span class="font-normal text-slate-500">{{ requestItem.student?.email }}</span></dd></div>
+                                                    <div><dt class="text-xs font-bold uppercase tracking-wide text-slate-500">Student</dt><dd class="mt-1 font-semibold text-slate-900">{{ requestItem.student?.name }}<br><span class="font-normal text-slate-500">{{ requestItem.student?.account_identifier }}</span><br><span class="font-normal text-slate-500">{{ requestItem.student?.email }}</span></dd></div>
                                                     <div><dt class="text-xs font-bold uppercase tracking-wide text-slate-500">Schedule</dt><dd class="mt-1 font-semibold text-slate-900">{{ formatDate(requestItem.reservation_date) }}<br>{{ formatTime(requestItem.start_time) }}–{{ formatTime(requestItem.end_time) }}</dd></div>
                                                     <div><dt class="text-xs font-bold uppercase tracking-wide text-slate-500">Attendees</dt><dd class="mt-1 font-semibold text-slate-900">{{ requestItem.attendees }} <span class="font-normal text-slate-500">/ capacity {{ requestItem.room?.capacity || 'not specified' }}</span></dd></div>
                                                     <div class="sm:col-span-2 xl:col-span-3"><dt class="text-xs font-bold uppercase tracking-wide text-slate-500">Purpose</dt><dd class="mt-1 font-semibold text-slate-900">{{ requestItem.purpose }}</dd></div>
@@ -329,7 +302,7 @@ const toggleRequest = (requestItem, event) => {
                                                 <p class="mt-1 text-sm font-semibold text-slate-900">{{ formatDate(requestItem.created_at, true) }}</p>
                                                 <p v-if="requestItem.reviewer" class="mt-4 text-xs text-slate-600">Reviewed by <strong>{{ requestItem.reviewer.name }}</strong></p>
                                                 <div class="mt-5 grid gap-2">
-                                                    <Link v-if="requestItem.source !== 'appointment'" :href="`/ReservationRequests/${requestItem.id}`" class="app-button-secondary w-full">View complete details</Link>
+                                                    <Link :href="`/ReservationRequests/${requestItem.id}`" class="app-button-secondary w-full">View complete details</Link>
                                                     <template v-if="requestItem.status === 'pending'">
                                                         <button type="button" class="rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-extrabold text-white hover:bg-emerald-800 disabled:opacity-60" :disabled="approvingId !== null || rejectForm.processing" @click="approve(requestItem)">
                                                             {{ approvingId === requestItem.id ? 'Approving…' : 'Approve request' }}

@@ -17,8 +17,6 @@ class ReservationRequestResource extends JsonResource
 
         return [
             'id' => $this->id,
-            'source' => $this->source ?? 'reservation',
-            'row_key' => ($this->source ?? 'reservation').'-'.$this->id,
             'student' => $this->student ? [
                 'id' => $this->student->id,
                 'name' => $studentName,
@@ -27,7 +25,7 @@ class ReservationRequestResource extends JsonResource
                 'contact_number' => $this->student->contact_number,
                 'college' => $this->student->relationLoaded('college') ? $this->student->college?->college_name : null,
                 'department' => $this->student->relationLoaded('department') ? $this->student->department?->department_name : null,
-            ] : ($this->source === 'appointment' ? ['name' => $this->requester_name ?: 'Unknown requester', 'account_identifier' => null, 'email' => null] : null),
+            ] : null,
             'room' => $this->room ? [
                 'id' => $this->room->id,
                 'room_name' => $this->room->room_name,
