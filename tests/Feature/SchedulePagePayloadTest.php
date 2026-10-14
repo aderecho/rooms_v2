@@ -6,6 +6,13 @@ use App\Models\Schedule;
 use App\Models\UserAccount;
 use Inertia\Testing\AssertableInertia as Assert;
 
+function scheduleDataHeaders(): array
+{
+    return ['X-Inertia-Partial-Component' => 'Schedule',
+        'X-Inertia-Partial-Data' => 'schedules,schedulePagination,scheduleCounts,matchingPendingCount',
+        'X-Inertia-Version' => (new \App\Http\Middleware\HandleInertiaRequests)->version(\Illuminate\Http\Request::create('/Schedule'))];
+}
+
 it('keeps schedule page props compact without exposing full related account records', function () {
     $admin = UserAccount::factory()->create(['user_type' => 'admin', 'account_status' => 'active']);
     $faculty = UserAccount::factory()->create(['user_type' => 'faculty', 'address' => str_repeat('Long profile ', 1000)]);
@@ -16,7 +23,7 @@ it('keeps schedule page props compact without exposing full related account reco
         'end_time' => '11:00', 'day_of_week' => 'Thursday', 'status' => 'pending',
     ]);
     $this->actingAs($admin)->withSession(['user' => LoginController::sessionPayload($admin)])
-        ->get('/Schedule')->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->get('/Schedule', scheduleDataHeaders())->assertOk()->assertInertia(fn (Assert $page) => $page
             ->component('Schedule')->has('schedules', 1)
             ->where('schedules.0.room.room_name', 'Payload room')
             ->where('schedules.0.faculty.first_name', $faculty->first_name)
@@ -38,12 +45,12 @@ it('renders only one page with 33395 schedules while preserving totals search an
         \Illuminate\Support\Facades\DB::table('schedules')->insert(array_fill(0, min(250, 33395 - $inserted), $row));
     }
     $this->actingAs($admin)->withSession(['user' => LoginController::sessionPayload($admin)]);
-    $response = $this->get('/Schedule');
+    $response = $this->get('/Schedule', scheduleDataHeaders());
     $response->assertOk()->assertInertia(fn (Assert $page) => $page
         ->has('schedules', 10)->where('schedulePagination.total', 33395)
         ->where('scheduleCounts.pending', 33395)->where('matchingPendingCount', 33395));
     expect(strlen($response->getContent()))->toBeLessThan(100000);
-    $this->get('/Schedule?page=2&per_page=50&search=HISTORICAL')->assertOk()
+    $this->get('/Schedule?page=2&per_page=50&search=HISTORICAL', scheduleDataHeaders())->assertOk()
         ->assertInertia(fn (Assert $page) => $page->has('schedules', 50)
             ->where('schedulePagination.current_page', 2)->where('schedulePagination.total', 33395));
     $this->getJson('/Schedule/calendar-data?start=2026-10-01&end=2026-10-31')
@@ -78,4 +85,30 @@ it('skips equipment queries during schedule-only partial reloads', function () {
     $this->actingAs($admin)->withSession(['user' => LoginController::sessionPayload($admin)])
         ->withHeaders(['X-Inertia' => 'true', 'X-Inertia-Partial-Component' => 'Schedule', 'X-Inertia-Partial-Data' => 'schedules', 'X-Inertia-Version' => (new \App\Http\Middleware\HandleInertiaRequests)->version(\Illuminate\Http\Request::create('/Schedule'))])
         ->get('/Schedule')->assertOk()->assertJsonMissingPath('props.rooms')->assertJsonMissingPath('props.globalEquipmentQuantities');
+});
+
+
+it('does not load schedule rows or form resources during the initial page visit', function () {
+    $admin = UserAccount::factory()->create(['user_type' => 'admin', 'account_status' => 'active']);
+    $this->mock(\App\Services\EquipmentInventoryService::class, function ($mock) {
+        $mock->shouldNotReceive('globalInventoryCountsByName');
+        $mock->shouldNotReceive('equipmentDetailsForRoom');
+    });
+    $this->actingAs($admin)->withSession(['user' => LoginController::sessionPayload($admin)])
+        ->get('/Schedule')->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->component('Schedule')->missing('schedules')->missing('schedulePagination')
+            ->missing('rooms')->missing('globalEquipmentQuantities')->missing('faculty')
+            ->loadDeferredProps(fn (Assert $loaded) => $loaded->has('schedules', 0)->has('schedulePagination')));
+});
+
+
+it('loads appointment form resources only when explicitly requested', function () {
+    $admin = UserAccount::factory()->create(['user_type' => 'admin', 'account_status' => 'active']);
+    $room = Room::create(['room_name' => 'On demand room', 'room_code' => 'DEMAND-1']);
+    $this->actingAs($admin)->withSession(['user' => LoginController::sessionPayload($admin)])
+        ->withHeaders(['X-Inertia' => 'true', 'X-Inertia-Partial-Component' => 'Schedule',
+            'X-Inertia-Partial-Data' => 'rooms,roomEquipmentQuantities,globalEquipmentQuantities',
+            'X-Inertia-Version' => (new \App\Http\Middleware\HandleInertiaRequests)->version(\Illuminate\Http\Request::create('/Schedule'))])
+        ->get('/Schedule')->assertOk()->assertJsonPath('props.rooms.0.id', $room->id)
+        ->assertJsonMissingPath('props.schedules')->assertJsonMissingPath('props.schedulePagination');
 });

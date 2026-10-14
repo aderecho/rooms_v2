@@ -27,9 +27,12 @@ class ScheduleController extends Controller
             'page' => 'nullable|integer|min:1',
         ]);
         $search = trim($filters['search'] ?? '');
-        $schedules = $this->applySearch($this->pageQuery(), $search)
-            ->orderBy('date', 'desc')->orderBy('start_time', 'desc')->orderBy('id')
-            ->paginate((int) ($filters['per_page'] ?? 10))->withQueryString();
+        $schedules = null;
+        $loadSchedules = function () use (&$schedules, $search, $filters) {
+            return $schedules ??= $this->applySearch($this->pageQuery(), $search)
+                ->orderBy('date', 'desc')->orderBy('start_time', 'desc')->orderBy('id')
+                ->paginate((int) ($filters['per_page'] ?? 10))->withQueryString();
+        };
         $counts = Schedule::query()->selectRaw('status, COUNT(*) as total')->groupBy('status')->pluck('total', 'status');
         $pendingCount = $this->applySearch(Schedule::query(), $search)->where('status', 'pending')->count();
 
@@ -54,23 +57,23 @@ class ScheduleController extends Controller
         $currentUserRole = strtolower((string) data_get($request->session()->get('user'), 'role', ''));
 
         return Inertia::render('Schedule', [
-            'schedules' => $schedules->items(),
-            'schedulePagination' => [
-                'current_page' => $schedules->currentPage(), 'last_page' => $schedules->lastPage(),
-                'per_page' => $schedules->perPage(), 'total' => $schedules->total(),
-                'from' => $schedules->firstItem(), 'to' => $schedules->lastItem(),
-            ],
+            'schedules' => Inertia::defer(fn () => $loadSchedules()->items(), 'schedule-list'),
+            'schedulePagination' => Inertia::defer(fn () => [
+                'current_page' => $loadSchedules()->currentPage(), 'last_page' => $loadSchedules()->lastPage(),
+                'per_page' => $loadSchedules()->perPage(), 'total' => $loadSchedules()->total(),
+                'from' => $loadSchedules()->firstItem(), 'to' => $loadSchedules()->lastItem(),
+            ], 'schedule-list'),
             'scheduleFilters' => ['search' => $search],
             'scheduleCounts' => $counts,
             'matchingPendingCount' => $pendingCount,
-            'rooms' => $loadRooms,
-            'roomEquipmentQuantities' => fn () => $this->buildRoomEquipmentQuantitiesMap($loadRooms()),
-            'globalEquipmentQuantities' => fn () => $this->equipmentInventory->globalInventoryCountsByName(),
-            'faculty' => fn () => UserAccount::select('id', 'first_name', 'middle_name', 'last_name')->where('user_type', 'faculty')->get(),
-            'requesters' => fn () => UserAccount::select('id', 'first_name', 'middle_name', 'last_name')->whereIn('user_type', ['faculty', 'staff'])->get(),
+            'rooms' => Inertia::optional($loadRooms),
+            'roomEquipmentQuantities' => Inertia::optional(fn () => $this->buildRoomEquipmentQuantitiesMap($loadRooms())),
+            'globalEquipmentQuantities' => Inertia::optional(fn () => $this->equipmentInventory->globalInventoryCountsByName()),
+            'faculty' => Inertia::optional(fn () => UserAccount::select('id', 'first_name', 'middle_name', 'last_name')->where('user_type', 'faculty')->get()),
+            'requesters' => Inertia::optional(fn () => UserAccount::select('id', 'first_name', 'middle_name', 'last_name')->whereIn('user_type', ['faculty', 'staff'])->get()),
             'currentRequester' => $currentRequester,
             'currentUserRole' => $currentUserRole,
-            'terms' => fn () => Term::select('id', 'term_name')->where('status', 'active')->get(),
+            'terms' => Inertia::optional(fn () => Term::select('id', 'term_name')->where('status', 'active')->get()),
         ]);
     }
 
