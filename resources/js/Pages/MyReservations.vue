@@ -187,7 +187,7 @@ const filterByStatus = (status) => {
                         <select v-model="form.room_id" class="app-field mt-3 w-full" :disabled="availabilityLoading || !availableRooms.length" required>
                             <option value="">{{ canCheckAvailability ? 'Select an available room' : 'Choose date and time first' }}</option>
                             <option v-for="room in availableRooms" :key="room.id" :value="room.id">
-                                {{ room.room_code }} — {{ room.room_name }} (capacity {{ room.capacity || 'not specified' }})
+                                {{ room.room_code }} — {{ room.room_name }} (capacity {{ room.capacity || 'not specified' }}) · {{ Number(room.is_public) === 1 ? 'Public' : 'Private' }}
                             </option>
                         </select>
                         <p v-if="availabilityError" class="mt-2 text-sm font-semibold text-red-700">{{ availabilityError }}</p>
