@@ -39,6 +39,7 @@ function reservationRoom(string $suffix = 'one', int $capacity = 40): Room
         'room_name' => "Reservation Room {$suffix}",
         'room_code' => 'RES-'.strtoupper($suffix),
         'capacity' => $capacity,
+        'is_public' => 1,
         'status' => 'available',
     ]);
 }
@@ -121,6 +122,17 @@ it('builds queued email notifications with reservation details and role-correct 
     expect($studentMail->subject)->toContain('Update on Your Request')
         ->and($studentMail->actionUrl)->toContain("/MyReservations/{$request->id}")
         ->and(implode(' ', $studentMail->introLines))->toContain('presentation equipment');
+});
+
+it('only includes public rooms in reservation availability', function () {
+    $publicRoom = reservationRoom('public');
+    $privateRoom = reservationRoom('private');
+    $privateRoom->update(['is_public' => 0]);
+
+    $rooms = app(\App\Services\ReservationRequestService::class)->availability('2026-09-10', '09:00', '10:00');
+
+    expect(collect($rooms)->pluck('id')->all())->toBe([$publicRoom->id])
+        ->and($rooms[0]['is_public'])->toBe(1);
 });
 
 it('returns only truly available rooms and rejects schedule and request overlaps', function ($scheduleStatus) {

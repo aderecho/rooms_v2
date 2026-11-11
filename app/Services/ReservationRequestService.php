@@ -30,6 +30,7 @@ class ReservationRequestService
         $this->assertWithinOperatingHours($startTime, $endTime);
 
         $rooms = Room::query()
+            ->where('is_public', 1)
             ->with(['building', 'college'])
             ->orderBy('room_name')
             ->get();
@@ -46,6 +47,7 @@ class ReservationRequestService
                 'building' => $room->building?->building_name,
                 'college' => $room->college?->college_name,
                 'status' => $room->status,
+                'is_public' => $room->is_public,
                 'is_available' => $conflicts === [],
                 'unavailable_reason' => null,
                 'conflicts' => $conflicts,
